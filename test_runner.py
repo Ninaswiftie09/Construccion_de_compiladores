@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+sys.path.insert(0, str(Path(__file__).parent / "backend"))
 
 from analyzer.compiler import Compiler
 from models.types import DataType

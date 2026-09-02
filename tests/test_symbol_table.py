@@ -89,6 +89,16 @@ class TestSymbolTable:
         self.table.exit_scope()
         assert not self.table.is_in_function()
 
+    def test_update_visible_symbol(self):
+        """Test updating information in the closest visible entry"""
+        symbol = Symbol("counter", "variable", DataType.INTEGER)
+        self.table.define_symbol(symbol)
+        self.table.enter_scope("block")
+
+        assert self.table.update_symbol("counter", is_initialized=True)
+        assert symbol.is_initialized
+        assert not self.table.update_symbol("missing", is_initialized=True)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
