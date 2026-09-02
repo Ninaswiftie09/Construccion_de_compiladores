@@ -9,8 +9,6 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent / "backend"))
 
 from analyzer.compiler import Compiler
-from models.types import DataType
-
 def test_program(name: str, code: str):
     """Test a program and display results"""
     print(f"\n{'='*60}")
@@ -25,7 +23,7 @@ def test_program(name: str, code: str):
     result = compiler.compile(code)
     
     print("\nResults:")
-    print(f"  Status: {'✅ SUCCESS' if result.has_errors() == False else '❌ ERRORS'}")
+    print(f"  Status: {'SUCCESS' if not result.has_errors() else 'ERRORS'}")
     print(f"  Total errors: {len(result.get_all_errors())}")
     print(f"  Lexical errors: {len(result.lexical_errors)}")
     print(f"  Syntactic errors: {len(result.syntactic_errors)}")
@@ -35,13 +33,13 @@ def test_program(name: str, code: str):
     if result.get_all_errors():
         print("\nErrors:")
         for error in result.get_all_errors():
-            print(f"  [{error.error_type.upper()}] Line {error.line}:{error.column} - {error.message}")
+            print(f"  [{error.error_type.value.upper()}] Line {error.line}:{error.column} - {error.message}")
     else:
-        print("\n✨ No errors found!")
+        print("\nNo errors found!")
 
 
 if __name__ == "__main__":
-    print("🧪 Compiscript Compiler - Test Suite")
+    print("Compiscript Compiler - Test Suite")
     
     # Test 1: Valid arithmetic
     test_program(
