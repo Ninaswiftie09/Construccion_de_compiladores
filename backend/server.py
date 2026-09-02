@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Any, Optional
 
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -32,6 +32,9 @@ class CompileResponse(BaseModel):
     semanticErrors: int
     errors: list
     tokenCount: int
+    tokens: list[dict[str, Any]]
+    ast: Optional[dict[str, Any]] = None
+    symbolTable: Optional[dict[str, Any]] = None
 
 
 # ===== FastAPI App Setup =====
@@ -82,15 +85,7 @@ async def compile_code(request: CompileRequest) -> CompileResponse:
         compiler = Compiler()
         result = compiler.compile(request.code)
         
-        return CompileResponse(
-            success=not result.has_errors(),
-            totalErrors=len(result.get_all_errors()),
-            lexicalErrors=len(result.lexical_errors),
-            syntacticErrors=len(result.syntactic_errors),
-            semanticErrors=len(result.semantic_errors),
-            errors=[error.to_dict() for error in result.get_all_errors()],
-            tokenCount=len(result.tokens)
-        )
+        return CompileResponse(**result.to_dict())
     
     except Exception as e:
         raise HTTPException(
@@ -116,21 +111,16 @@ async def compile_file(file: UploadFile = File(...)) -> CompileResponse:
         
         # Read file content
         content = await file.read()
-        source_code = content.decode('utf-8')
+        try:
+            source_code = content.decode('utf-8')
+        except UnicodeDecodeError as error:
+            raise HTTPException(status_code=400, detail="File must use UTF-8 encoding") from error
         
         # Compile
         compiler = Compiler()
         result = compiler.compile(source_code)
         
-        return CompileResponse(
-            success=not result.has_errors(),
-            totalErrors=len(result.get_all_errors()),
-            lexicalErrors=len(result.lexical_errors),
-            syntacticErrors=len(result.syntactic_errors),
-            semanticErrors=len(result.semantic_errors),
-            errors=[error.to_dict() for error in result.get_all_errors()],
-            tokenCount=len(result.tokens)
-        )
+        return CompileResponse(**result.to_dict())
     
     except HTTPException:
         raise
@@ -175,13 +165,13 @@ if __name__ == "__main__":
     parser_file = grammar_dir / "CompiscriptParser.py"
     
     if not lexer_file.exists() or not parser_file.exists():
-        print("⚠️  Warning: ANTLR generated files not found!")
+        print("Warning: ANTLR generated files not found!")
         print("Please run: cd backend/grammar && antlr4 -Dlanguage=Python3 -visitor -listener Compiscript.g4")
         print()
     
-    print("🚀 Starting Compiscript Compiler API...")
-    print("📍 Server running at http://localhost:8000")
-    print("📚 API documentation at http://localhost:8000/docs")
+    print("Starting Compiscript Compiler API...")
+    print("Server running at http://localhost:8000")
+    print("API documentation at http://localhost:8000/docs")
     
     uvicorn.run(
         app,
