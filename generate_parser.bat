@@ -10,6 +10,7 @@ echo ===========================================
 echo.
 
 cd /d "%~dp0\backend\grammar"
+set ANTLR4_TOOLS_ANTLR_VERSION=4.13.2
 
 REM Check if antlr4 is installed
 where antlr4 >nul 2>nul
@@ -17,8 +18,8 @@ if errorlevel 1 (
   echo ❌ Error: antlr4 not found
   echo.
   echo Please install ANTLR first:
-  echo   1. Download antlr-4.14.0-complete.jar from https://www.antlr.org/download/
-  echo   2. Add it to PATH or run: java -jar antlr-4.14.0-complete.jar
+  echo   1. Download antlr-4.13.2-complete.jar from https://www.antlr.org/download/
+  echo   2. Add it to PATH or run: java -jar antlr-4.13.2-complete.jar
   exit /b 1
 )
 
@@ -37,5 +38,3 @@ dir *.py | find /C "Lexer" >nul && echo   - CompiscriptLexer.py
 dir *.py | find /C "Parser" >nul && echo   - CompiscriptParser.py
 dir *.py | find /C "Visitor" >nul && echo   - CompiscriptVisitor.py
 dir *.py | find /C "Listener" >nul && echo   - CompiscriptListener.py
-
-pause

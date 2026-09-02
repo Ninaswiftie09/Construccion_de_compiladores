@@ -27,6 +27,7 @@ pip install -q -r requirements.txt
 REM Generate ANTLR files
 echo    Generating ANTLR parser...
 cd grammar
+set ANTLR4_TOOLS_ANTLR_VERSION=4.13.2
 antlr4 -Dlanguage=Python3 -visitor -listener Compiscript.g4
 cd ..
 
@@ -62,4 +63,3 @@ echo   npm start
 echo.
 echo The IDE will be available at http://localhost:3000
 echo.
-pause

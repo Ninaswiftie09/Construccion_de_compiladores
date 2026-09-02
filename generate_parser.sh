@@ -9,6 +9,7 @@ echo "🔨 Generating ANTLR Parser for Compiscript"
 echo "==========================================="
 
 cd "$(dirname "$0")/backend/grammar"
+export ANTLR4_TOOLS_ANTLR_VERSION=4.13.2
 
 if ! command -v antlr4 &> /dev/null; then
   echo "❌ Error: antlr4 not found"
@@ -16,7 +17,7 @@ if ! command -v antlr4 &> /dev/null; then
   echo "Please install ANTLR first:"
   echo "  macOS:  brew install antlr"
   echo "  Linux:  sudo apt-get install antlr4"
-  echo "  Windows: Download from https://www.antlr.org/download/antlr-4.14.0-complete.jar"
+  echo "  Or run: pip install antlr4-tools==0.2.2"
   exit 1
 fi
 

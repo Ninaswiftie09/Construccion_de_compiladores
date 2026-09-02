@@ -29,6 +29,7 @@ pip install -q -r requirements.txt
 # Generate ANTLR files
 echo "   Generating ANTLR parser..."
 cd grammar
+export ANTLR4_TOOLS_ANTLR_VERSION=4.13.2
 if ! command -v antlr4 &> /dev/null; then
   echo "   ⚠️  ANTLR not found. Please install it first:"
   echo "      brew install antlr (macOS)"

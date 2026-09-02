@@ -31,6 +31,7 @@ env/
 
 # ANTLR generated files
 *.tokens
+*.interp
 *Lexer.py
 *Parser.py
 *Listener.py
@@ -60,3 +61,4 @@ htmlcov/
 instrucciones/
 .env
 test_outputs/
+tmp/
