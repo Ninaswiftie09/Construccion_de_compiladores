@@ -1,265 +1,96 @@
-# Architecture Documentation
+# Arquitectura
 
-## Project Overview
+## Alcance
 
-The Compiscript Compiler is a three-phase compiler with an integrated IDE:
-1. **Lexical Analysis** - Tokenization
-2. **Syntactic Analysis** - AST generation
-3. **Semantic Analysis** - Type checking and scope validation
+El proyecto implementa análisis estático de Compiscript. La salida contiene diagnósticos, tokens, árbol sintáctico y tabla de símbolos. No existe fase de ejecución ni generación de código.
 
-## Architecture Components
+## Flujo de análisis
 
-### Backend (Python)
-
-```
-backend/
-├── grammar/
-│   ├── Compiscript.g4          # ANTLR grammar
-│   ├── CompiscriptLexer.py      # Generated lexer
-│   └── CompiscriptParser.py     # Generated parser
-├── analyzer/
-│   ├── compiler.py              # Main compiler orchestrator
-│   ├── semantic.py              # Semantic analyzer & type checker
-│   └── symbol_table.py          # Symbol table with scope management
-├── models/
-│   ├── error.py                 # Error representation
-│   ├── types.py                 # Type system & symbol definitions
-│   └── __init__.py
-├── server.py                    # FastAPI server
-└── requirements.txt             # Python dependencies
+```text
+código .cps
+   |
+   +-- Lexer ANTLR ------- tokens + errores léxicos
+   |
+   +-- Parser ANTLR ------ árbol + errores sintácticos
+   |
+   +-- Visitor semántico - errores + tabla de símbolos
+                              |
+                              +-- API FastAPI -- IDE React
 ```
 
-### Frontend (React + TypeScript)
+`Compiler` coordina las fases y conserva el árbol recuperado aunque el parser encuentre errores. Esto permite continuar con validaciones semánticas útiles cuando la estructura restante todavía es recorrible.
 
-```
-frontend/
-├── public/
-│   └── index.html               # HTML entry point
-├── src/
-│   ├── App.tsx                  # Main component
-│   ├── App.css                  # Styling
-│   ├── index.tsx                # React entry point
-│   └── index.css                # Global styles
-├── package.json                 # Dependencies
-└── tsconfig.json                # TypeScript config
-```
+## Componentes
 
-## Analysis Pipeline
+### Gramática ANTLR
 
-### Phase 1: Lexical Analysis
-- **Input**: Source code string
-- **Process**: 
-  - ANTLR Lexer tokenizes input
-  - Recovers from unknown tokens
-  - Continues to find all lexical errors
-- **Output**: Token stream, lexical errors
-- **Error Recovery**: Skips unrecognized characters and continues
+`backend/grammar/Compiscript.g4` define lexer y parser. Los archivos Python generados se reconstruyen con `generate_parser.bat` o `generate_parser.sh` y no se guardan en Git.
 
-### Phase 2: Syntactic Analysis
-- **Input**: Token stream from lexer
-- **Process**:
-  - ANTLR Parser builds AST
-  - Implements panic mode error recovery
-  - Reports all syntax errors found
-- **Output**: AST, syntactic errors
-- **Error Recovery**: Synchronizes to next statement on errors
+ANTLR aplica recuperación por defecto en el parser. El lexer descarta el carácter inválido y continúa. Los listeners personalizados acumulan diagnósticos y eliminan duplicados exactos.
 
-### Phase 3: Semantic Analysis
-- **Input**: AST from parser
-- **Process**:
-  - Tree walk visitor traverses AST
-  - Symbol table tracks variables and functions
-  - Type checker validates operations
-  - Scope validator ensures proper name resolution
-- **Output**: Semantic errors, annotated AST
-- **Error Recovery**: Continues analyzing after type errors
+### Analizador semántico
 
-## Core Classes
+`backend/analyzer/semantic.py` implementa un visitor. Antes de recorrer un alcance registra sus funciones y clases; así una función puede llamarse a sí misma y las declaraciones anidadas pueden capturar símbolos de alcances externos.
 
-### `Compiler`
-Main orchestrator that coordinates all phases. Entry point for compilation.
+Reglas cubiertas:
+
+- operaciones aritméticas, lógicas y comparaciones;
+- inferencia básica y compatibilidad en asignaciones;
+- constantes y prohibición de reasignación;
+- identificadores duplicados o no declarados;
+- cantidad y tipo de argumentos, recursión y retornos;
+- condiciones booleanas y ubicación de sentencias de control;
+- arreglos homogéneos e índices enteros;
+- clases, herencia, `this`, miembros y constructores;
+- detección directa de instrucciones posteriores a una salida.
+
+El tipo `unknown` evita diagnósticos derivados cuando un error anterior impide conocer un tipo.
+
+### Tabla de símbolos
+
+`backend/analyzer/symbol_table.py` mantiene un árbol de alcances. Cada `Scope` enlaza padre e hijos y guarda sus símbolos en un diccionario.
+
+Operaciones principales:
 
 ```python
-result = compiler.compile(source_code)
-# Returns CompilationResult with all errors
+table.define_symbol(symbol)                         # insertar
+table.lookup_symbol("name")                        # recuperar
+table.update_symbol("name", is_initialized=True)  # actualizar
+table.enter_scope("function", "sum")              # abrir alcance
+table.exit_scope()                                  # volver al padre
 ```
 
-### `SymbolTable`
-Hierarchical symbol table with scope management.
+Los alcances se serializan completos para mostrarlos en el IDE.
 
-Features:
-- Global, function, class, and block scopes
-- Parent scope lookup (variable resolution)
-- Loop and function context tracking
-- Scope hierarchy queries
+### API
 
-```python
-table.enter_scope("function")
-table.define_symbol(symbol)
-symbol = table.lookup_symbol("name")  # Searches current + parent scopes
-table.exit_scope()
+`backend/server.py` expone:
+
+- `POST /compile`: analiza el texto del editor;
+- `POST /compile/file`: recibe un archivo `.cps` UTF-8;
+- `GET /health`: comprueba disponibilidad;
+- `GET /info`: describe las capacidades.
+
+La respuesta de compilación incluye contadores por fase, lista de errores, tokens, árbol y tabla de símbolos.
+
+### IDE
+
+`frontend/src/App.tsx` usa React, TypeScript y Monaco. La interfaz ofrece:
+
+- apertura y arrastre de archivos `.cps`;
+- resaltado propio para Compiscript;
+- marcadores y navegación a la línea del error;
+- pestañas de diagnósticos, árbol, símbolos y tokens;
+- ejemplos válidos y con varios errores;
+- distribución adaptable para pantallas pequeñas.
+
+## Pruebas
+
+`pytest.ini` agrega `backend/` al path y limita el descubrimiento a `tests/`. La batería incluye tipos, tabla de símbolos, reglas semánticas, recuperación de errores y programas `.cps`.
+
+Comandos de verificación:
+
+```bash
+python -m pytest -v
+cd frontend && npm run build
 ```
-
-### `SemanticAnalyzer`
-Validates types, scopes, and semantic rules.
-
-Key operations:
-- Type checking: arithmetic, logical, comparison operations
-- Assignment validation
-- Function call validation (arity and types)
-- Control flow validation (break/continue/return placement)
-- Variable declaration and resolution
-
-### `CompilationResult`
-Collects all errors and metadata from compilation.
-
-```python
-result.lexical_errors     # List of lexical errors
-result.syntactic_errors   # List of syntactic errors
-result.semantic_errors    # List of semantic errors
-result.tokens             # List of tokens generated
-result.ast                # Abstract syntax tree
-```
-
-## Data Types
-
-Supported types:
-- `integer` - 32-bit integers
-- `float` - Floating point numbers
-- `string` - Text strings
-- `boolean` - true/false values
-- `null` - Null/none value
-- `array` - Collections (type generic)
-- `object` - Class instances
-
-Type compatibility rules:
-- Same types are directly assignable
-- `NULL` is compatible with all types
-- `integer` can be assigned to `float`
-- Numeric types (`integer`, `float`) can be used in arithmetic operations
-- `boolean` types required for logical operations
-
-## Error Recovery Strategy
-
-### Lexical Errors
-- Unrecognized characters are skipped
-- Lexer continues tokenizing remainder of input
-- No fatal errors
-
-### Syntactic Errors
-- Panic mode recovery: skip tokens until synchronization point
-- Synchronization points: statement boundaries, block delimiters
-- Multiple errors reported per execution
-
-### Semantic Errors
-- Analysis continues after type errors
-- Symbol table maintains state across errors
-- All semantic violations reported in one pass
-
-## API Endpoints
-
-### `POST /compile`
-Compile source code provided as string.
-
-Request:
-```json
-{
-  "code": "let x: integer = 10; print(x);"
-}
-```
-
-Response:
-```json
-{
-  "success": true,
-  "totalErrors": 0,
-  "lexicalErrors": 0,
-  "syntacticErrors": 0,
-  "semanticErrors": 0,
-  "errors": [],
-  "tokenCount": 8
-}
-```
-
-### `POST /compile/file`
-Compile file uploaded as multipart form-data.
-
-### `GET /health`
-Health check endpoint.
-
-## Frontend Features
-
-### Editor
-- Monaco Editor integration with syntax highlighting
-- Real-time error display
-- Line numbers and code folding
-
-### Results Panel
-- Error summary (lexical, syntactic, semantic)
-- Detailed error list with line/column info
-- Token count statistics
-- File upload and example loading
-
-### UI/UX
-- Dark theme optimized for coding
-- Responsive design (mobile-friendly)
-- Smooth animations and transitions
-- Intuitive error visualization with color coding
-
-## Semantic Rules Implemented
-
-### Type System
-- ✓ Arithmetic operations require numeric types
-- ✓ Logical operations require boolean types
-- ✓ Comparison operations validate type compatibility
-- ✓ Assignment type checking
-
-### Scope Management
-- ✓ Variable declaration and resolution
-- ✓ Scope hierarchy (global, function, block)
-- ✓ No redeclaration in same scope
-- ✓ Closure variable capture
-
-### Control Flow
-- ✓ Break/continue must be in loops
-- ✓ Return must be in functions
-- ✓ Conditional expressions must be boolean
-
-### Functions
-- ✓ Function declaration and lookup
-- ✓ Parameter arity checking
-- ✓ Parameter type validation
-- ✓ Return type consistency
-
-## Testing Strategy
-
-### Unit Tests
-- `test_types.py` - Type system validation
-- `test_symbol_table.py` - Symbol table operations
-
-### Integration Tests
-- Test files in `tests/test_cases/` - Full compilation scenarios
-
-Test categories:
-- Valid programs
-- Lexical errors
-- Syntactic errors
-- Semantic errors (type mismatches, undeclared variables)
-
-## Performance Considerations
-
-- Single-pass lexical analysis: O(n) where n = source length
-- Single-pass syntactic analysis: O(n) with memoization
-- Single-pass semantic analysis: O(n)
-- Symbol table lookup: O(1) average (hash map), O(d) with scope depth
-- Overall compilation: O(n)
-
-## Future Enhancements
-
-- Code generation (intermediate representation)
-- Optimization passes
-- Runtime execution
-- Debugging information (debug symbols)
-- Extended standard library
-- Module system
-- Generics support

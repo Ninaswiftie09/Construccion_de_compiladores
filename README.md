@@ -1,98 +1,82 @@
-# Compiscript Compiler & IDE
+# Compiscript - analizador e IDE
 
-## Integrantes:
+Proyecto de Construcción de Compiladores para analizar programas Compiscript. El sistema cubre únicamente las fases léxica, sintáctica y semántica; no ejecuta código ni genera código intermedio u objeto.
+
+## Integrantes
+
 - Ingrid Nina Alessandra Nájera Marakovits, 231088
 - Eliazar José Pablo Canastuj Matías, 23384
 - Diego Alejandro Ramírez Velásquez, 23601
 
----
+## Funcionalidad
 
-## 📋 Descripción del Proyecto
+- Lexer y parser generados con ANTLR 4.13.2.
+- Recuperación de errores en las tres fases para reportar varios problemas por análisis.
+- Verificación de tipos, asignaciones, condiciones, arreglos y comparaciones.
+- Funciones recursivas y anidadas, parámetros, argumentos y tipos de retorno.
+- Clases, herencia, constructores, `this` y acceso a miembros.
+- Validación de `break`, `continue`, `return` y código inalcanzable.
+- Tabla de símbolos jerárquica con inserción, consulta, actualización y alcances.
+- IDE web con editor, selección de archivos `.cps`, diagnósticos, árbol sintáctico, símbolos y tokens.
 
-Implementación completa de un compilador para el lenguaje **Compiscript** con análisis léxico, sintáctico y semántico, más una interfaz IDE moderna e intuitiva.
+## Inicio rápido
 
-## ✨ Características
+Requisitos: Python 3.10 o superior, Node.js 18 o superior, Java 11 o superior y Git.
 
-✅ **Análisis Léxico** - Tokenización con recuperación de errores  
-✅ **Análisis Sintáctico** - Generación de AST con recuperación de errores  
-✅ **Análisis Semántico** - Verificación de tipos, manejo de scopes y validación  
-✅ **Tabla de Símbolos** - Gestión completa de entornos y ámbitos  
-✅ **IDE Integrado** - Interfaz moderna e intuitiva  
-✅ **Reportes de Errores** - Múltiples errores por ejecución con mensajes detallados  
-✅ **Suite de Pruebas** - Tests completos para todas las fases  
+En Windows:
 
-## 📂 Estructura del Proyecto
-
-```
-.
-├── backend/                    # Backend Python
-│   ├── grammar/               # Gramática ANTLR y archivos generados
-│   ├── analyzer/              # Implementación de análisis
-│   │   ├── lexer.py           # Lógica del analizador léxico
-│   │   ├── parser.py          # Wrapper del parser
-│   │   ├── semantic.py        # Analizador semántico
-│   │   └── symbol_table.py    # Tabla de símbolos y manejo de scopes
-│   ├── models/                # Estructuras de datos
-│   ├── server.py              # Servidor FastAPI
-│   └── requirements.txt        # Dependencias Python
-├── frontend/                   # Frontend React TypeScript
-│   ├── src/
-│   │   ├── components/        # Componentes UI
-│   │   ├── pages/            # Páginas
-│   │   ├── styles/           # Estilos
-│   │   └── App.tsx           # App principal
-│   └── package.json
-├── tests/                      # Suite de pruebas
-│   ├── test_cases/            # Casos de prueba .cps
-│   └── test_*.py              # Archivos de test
-└── docs/                       # Documentación
+```bat
+setup.bat
 ```
 
-## 🚀 Quick Start
-
-### Backend
+En Linux o macOS:
 
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Generar parser desde gramática ANTLR
-cd grammar
-antlr4 -Dlanguage=Python3 -visitor -listener Compiscript.g4
-cd ..
-
-python server.py
+chmod +x setup.sh generate_parser.sh
+./setup.sh
 ```
 
-### Frontend
+Después, inicia cada servicio en una terminal distinta:
 
 ```bash
+python quickstart.py backend
+python quickstart.py frontend
+```
+
+Abre `http://localhost:3000`. La API y su documentación estarán en `http://localhost:8000` y `http://localhost:8000/docs`.
+
+## Pruebas
+
+Desde la raíz:
+
+```bash
+python quickstart.py test
+```
+
+También puedes ejecutar directamente:
+
+```bash
+python -m pytest -v
 cd frontend
-npm install
-npm start
+npm run build
 ```
 
-El IDE estará disponible en `http://localhost:3000`
+Los casos `.cps` para demostración se encuentran en `tests/test_cases/`.
 
-## 🧪 Testing
+## Estructura
 
-```bash
-cd tests
-python -m pytest test_*.py -v
+```text
+backend/
+  analyzer/       Orquestador, visitor semántico y tabla de símbolos
+  grammar/        Gramática ANTLR
+  models/         Tipos, símbolos y errores
+  server.py       API FastAPI
+frontend/
+  src/            IDE React y estilos
+tests/            Pruebas unitarias, integrales y casos Compiscript
+docs/              Instalación y arquitectura
 ```
 
-## 📝 Requisitos Cumplidos
+Los archivos generados por ANTLR, entornos virtuales, dependencias de Node y la carpeta local `instrucciones/` están excluidos de Git.
 
-✓ Análisis léxico con recuperación de errores  
-✓ Análisis sintáctico con recuperación de errores  
-✓ Análisis semántico con recuperación de errores  
-✓ Sistema de tipos (aritmética, lógica, comparaciones)  
-✓ Manejo de ámbitos y resolución de nombres  
-✓ Validación de funciones y parámetros  
-✓ Validación de control de flujo  
-✓ Validación de clases y acceso a miembros  
-✓ Tabla de símbolos completa  
-✓ IDE con interfaz gráfica  
-✓ Reportes de múltiples errores
+Consulta [la guía de instalación](docs/SETUP.md) y [la arquitectura](docs/ARCHITECTURE.md) para más detalle.
