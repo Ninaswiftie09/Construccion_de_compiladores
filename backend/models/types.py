@@ -18,6 +18,8 @@ class DataType(Enum):
     VOID = "void"
     ARRAY = "array"
     OBJECT = "object"
+    FUNCTION = "function"
+    CLASS = "class"
     UNKNOWN = "unknown"
 
     def is_numeric(self) -> bool:
@@ -46,14 +48,16 @@ class TypeInfo:
     base: DataType
     class_name: Optional[str] = None
     element_type: Optional["TypeInfo"] = None
+    class_id: Optional[int] = None
 
     @classmethod
     def array_of(cls, element_type: "TypeInfo") -> "TypeInfo":
         return cls(DataType.ARRAY, element_type=element_type)
 
     @classmethod
-    def object_of(cls, class_name: str) -> "TypeInfo":
-        return cls(DataType.OBJECT, class_name=class_name)
+    def object_of(cls, class_name: str, class_id: Optional[int] = None) -> "TypeInfo":
+        # La identidad distingue clases con igual nombre en bloques diferentes.
+        return cls(DataType.OBJECT, class_name=class_name, class_id=class_id)
 
     def is_numeric(self) -> bool:
         return self.base.is_numeric()
@@ -63,10 +67,10 @@ class TypeInfo:
             return self.base == other and self.class_name is None and self.element_type is None
         if not isinstance(other, TypeInfo):
             return False
-        return (self.base, self.class_name, self.element_type) == (other.base, other.class_name, other.element_type)
+        return (self.base, self.class_name, self.element_type, self.class_id) == (other.base, other.class_name, other.element_type, other.class_id)
 
     def __hash__(self) -> int:
-        return hash((self.base, self.class_name, self.element_type))
+        return hash((self.base, self.class_name, self.element_type, self.class_id))
 
     def is_unknown(self) -> bool:
         return self.base == DataType.UNKNOWN
@@ -80,7 +84,9 @@ class TypeInfo:
             return self == other or self.base == DataType.NULL or other.base == DataType.NULL
         return self.base.is_comparable(other.base)
 
+    # El tipo destino acepta promociones seguras y arreglos compatibles.
     def is_compatible_with(self, other: "TypeInfo") -> bool:
+        # Unknown evita encadenar errores cuando falta un tipo por una falla previa.
         if self.is_unknown() or other.is_unknown() or self == other:
             return True
         if other.base == DataType.NULL and self.base != DataType.VOID:
@@ -132,7 +138,10 @@ class Symbol:
         self.parameters: list[tuple[str, TypeInfo]] = []
         self.return_type: TypeInfo = self.data_type
         self.base_class: Optional[str] = None
+        self.base_symbol: Optional[Symbol] = None
+        self.array_length: Optional[int] = None
 
+    # Se serializa informacion util sin incluir enlaces que forman ciclos.
     def to_dict(self) -> dict:
         return {
             "name": self.name,
@@ -160,12 +169,14 @@ class Scope:
         self.symbols: dict[str, Symbol] = {}
         self.child_scopes: list[Scope] = []
 
+    # El diccionario permite insertar y detectar duplicados por nombre.
     def define_symbol(self, symbol: Symbol) -> bool:
         if symbol.name in self.symbols:
             return False
         self.symbols[symbol.name] = symbol
         return True
 
+    # El simbolo mas cercano oculta los nombres iguales de los padres.
     def lookup_symbol(self, name: str) -> Optional[Symbol]:
         if name in self.symbols:
             return self.symbols[name]
@@ -177,6 +188,7 @@ class Scope:
     def get_all_symbols(self) -> list[Symbol]:
         return list(self.symbols.values())
 
+    # Se serializa informacion util sin incluir enlaces que forman ciclos.
     def to_dict(self) -> dict:
         return {
             "type": self.scope_type,

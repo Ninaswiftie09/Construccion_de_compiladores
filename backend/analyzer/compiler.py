@@ -28,6 +28,7 @@ class CompilationResult:
     def has_errors(self) -> bool:
         return bool(self.get_all_errors())
 
+    # Esta estructura es el contrato compartido entre la API y React.
     def to_dict(self) -> dict[str, Any]:
         return {
             "success": not self.has_errors(),
@@ -67,6 +68,7 @@ class Compiler:
     def __init__(self):
         self.result: Optional[CompilationResult] = None
 
+    # Cada solicitud empieza con un resultado limpio y recorre las tres fases.
     def compile(self, source_code: str) -> CompilationResult:
         self.result = CompilationResult()
         self._lexical_analysis(source_code)
@@ -79,21 +81,24 @@ class Compiler:
     def _lexical_analysis(self, source_code: str):
         try:
             from grammar.CompiscriptLexer import CompiscriptLexer
+            from grammar.CompiscriptParser import CompiscriptParser
 
             lexer = CompiscriptLexer(InputStream(source_code))
             listener = CompilerErrorListener(ErrorType.LEXICAL)
             lexer.removeErrorListeners()
             lexer.addErrorListener(listener)
+            # ANTLR descarta caracteres invalidos y sigue produciendo tokens.
             tokens = lexer.getAllTokens()
             for token in tokens:
-                token_name = (
-                    lexer.symbolicNames[token.type]
-                    if 0 <= token.type < len(lexer.symbolicNames)
-                    else str(token.type)
-                )
+                # El parser conserva los indices de los tokens implicitos de ANTLR.
+                names = CompiscriptParser.symbolicNames
+                literals = CompiscriptParser.literalNames
+                token_name = names[token.type] if token.type < len(names) else "<INVALID>"
+                if token_name == "<INVALID>":
+                    token_name = literals[token.type].strip("'") if token.type < len(literals) else str(token.type)
                 self.result.tokens.append(
                     {
-                        "type": token_name or lexer.literalNames[token.type],
+                        "type": token_name,
                         "value": token.text,
                         "line": token.line,
                         "column": token.column,
@@ -122,6 +127,7 @@ class Compiler:
             listener = CompilerErrorListener(ErrorType.SYNTACTIC)
             parser.removeErrorListeners()
             parser.addErrorListener(listener)
+            # La estrategia de recuperacion predeterminada intenta completar el arbol.
             tree = parser.program()
             self.result._parse_tree = tree
             self.result.ast = self._tree_to_dict(tree, parser)
@@ -133,6 +139,7 @@ class Compiler:
         except Exception as error:
             self.result.syntactic_errors.append(CompilationError(ErrorType.SYNTACTIC, f"Fallo del parser: {error}"))
 
+    # Convierte cada nodo y sus hijos al formato que muestra el IDE.
     def _tree_to_dict(self, node, parser) -> dict[str, Any]:
         if isinstance(node, TerminalNode):
             token = node.getSymbol()
@@ -151,6 +158,7 @@ class Compiler:
             "children": [self._tree_to_dict(node.getChild(index), parser) for index in range(node.getChildCount())],
         }
 
+    # El visitor valida reglas y construye los alcances sobre el arbol recuperado.
     def _semantic_analysis(self):
         try:
             from analyzer.semantic import SemanticAnalyzer

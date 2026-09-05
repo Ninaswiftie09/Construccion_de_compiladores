@@ -22,15 +22,18 @@ class SymbolTable:
         return new_scope
 
     def exit_scope(self) -> Optional[Scope]:
+        # El alcance global nunca se elimina de la pila.
         if len(self.scopes_stack) == 1:
             return None
         self.scopes_stack.pop()
         self.current_scope = self.scopes_stack[-1]
         return self.current_scope
 
+    # La insercion revisa duplicados solo en el entorno actual.
     def define_symbol(self, symbol: Symbol) -> bool:
         return self.current_scope.define_symbol(symbol)
 
+    # La consulta sube hacia los padres hasta encontrar el nombre visible.
     def lookup_symbol(self, name: str) -> Optional[Symbol]:
         return self.current_scope.lookup_symbol(name)
 
@@ -42,6 +45,7 @@ class SymbolTable:
         symbol = self.lookup_symbol(name)
         if symbol is None:
             return False
+        # Conservamos el nombre porque tambien es la llave del diccionario.
         for field, value in changes.items():
             if field != "name" and hasattr(symbol, field):
                 setattr(symbol, field, value)
@@ -59,7 +63,15 @@ class SymbolTable:
         return False
 
     def is_in_loop(self) -> bool:
-        return self._has_scope(("while", "do-while", "for", "foreach"))
+        # Un break no puede saltar desde una funcion hacia el ciclo que la contiene.
+        scope = self.current_scope
+        while scope:
+            if scope.scope_type in ("function", "class"):
+                return False
+            if scope.scope_type in ("while", "do-while", "for", "foreach"):
+                return True
+            scope = scope.parent
+        return False
 
     def is_in_function(self) -> bool:
         return self._has_scope(("function",))
@@ -81,10 +93,12 @@ class SymbolTable:
             scope = scope.parent
         return hierarchy
 
+    # Se conservan tambien los alcances cerrados para dibujarlos en el IDE.
     def to_dict(self) -> dict:
         return self.global_scope.to_dict()
 
     def debug_print_scopes(self):
+        # Este recorrido solo sirve para depurar la jerarquia en consola.
         def print_scope(scope: Scope, indent: int = 0):
             prefix = "  " * indent
             print(f"{prefix}[{scope.scope_type}] {scope.name}")
