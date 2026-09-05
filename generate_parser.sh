@@ -25,7 +25,7 @@ echo "📝 Grammar file: Compiscript.g4"
 echo "🎯 Target language: Python 3"
 echo ""
 
-# Generate parser
+# Visitor y listener permiten recorrer el arbol generado.
 echo "Generating lexer, parser, visitor, and listener..."
 antlr4 -Dlanguage=Python3 -visitor -listener Compiscript.g4
 

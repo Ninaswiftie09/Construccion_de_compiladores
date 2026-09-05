@@ -1,3 +1,4 @@
+// Las reglas superiores forman el arbol; las inferiores reconocen los tokens.
 grammar Compiscript;
 
 // ------------------

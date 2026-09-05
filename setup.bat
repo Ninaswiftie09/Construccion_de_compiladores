@@ -7,24 +7,24 @@ echo 🚀 Compiscript Compiler Setup
 echo ==============================
 echo.
 
-REM Backend Setup
+REM Prepara las dependencias de Python antes de generar el parser.
 echo 1️⃣  Setting up backend...
 cd backend
 
-REM Create virtual environment
+REM Aisla las dependencias del proyecto en un entorno virtual.
 if not exist "venv" (
   echo    Creating virtual environment...
   python -m venv venv
 )
 
-REM Activate virtual environment
+REM Usa los ejecutables del entorno virtual en los siguientes pasos.
 call venv\Scripts\activate.bat
 
-REM Install dependencies
+REM Instala las dependencias declaradas por el proyecto.
 echo    Installing Python dependencies...
 pip install -q -r requirements.txt
 
-REM Generate ANTLR files
+REM Genera lexer, parser, visitor y listener desde la gramatica.
 echo    Generating ANTLR parser...
 cd grammar
 set ANTLR4_TOOLS_ANTLR_VERSION=4.13.2
@@ -36,11 +36,11 @@ cd ..
 
 echo.
 
-REM Frontend Setup
+REM Prepara las dependencias de la interfaz React.
 echo 2️⃣  Setting up frontend...
 cd frontend
 
-REM Install dependencies
+REM Instala las dependencias declaradas por el proyecto.
 echo    Installing Node.js dependencies...
 call npm install
 

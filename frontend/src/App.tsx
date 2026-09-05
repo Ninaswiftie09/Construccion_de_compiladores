@@ -3,6 +3,7 @@ import axios from 'axios';
 import Editor from '@monaco-editor/react';
 import './App.css';
 
+// Estos tipos reflejan el JSON que devuelve la API.
 interface CompilationError {
   type: 'lexical' | 'syntactic' | 'semantic' | 'connection';
   message: string;
@@ -85,6 +86,7 @@ break;
 let activo: boolean = 1 && false;`,
 };
 
+// Cada nodo dibuja sus hijos; details permite expandir el arbol.
 function AstTree({ node, depth = 0 }: { node: AstNode; depth?: number }) {
   const isToken = node.name === 'token';
   if (isToken) {
@@ -100,6 +102,7 @@ function AstTree({ node, depth = 0 }: { node: AstNode; depth?: number }) {
   );
 }
 
+// Los bloques anidados muestran donde se declaro cada identificador.
 function ScopeTree({ scope, depth = 0 }: { scope: SymbolScope; depth?: number }) {
   return (
     <details className="scope-card" open={depth < 2}>
@@ -133,6 +136,7 @@ function App() {
   const monacoRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Envia el texto al backend y guarda los resultados de las tres fases.
   const handleCompile = useCallback(async () => {
     setLoading(true);
     try {
@@ -160,11 +164,13 @@ function App() {
       });
       setActiveTab('errors');
     } finally {
+      // El boton vuelve a habilitarse incluso si falla la conexion.
       setLoading(false);
     }
   }, [code]);
 
   useEffect(() => {
+    // El atajo funciona en Windows y macOS y se limpia al desmontar.
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault();
@@ -180,6 +186,7 @@ function App() {
     const monaco = monacoRef.current;
     if (!editor || !monaco) return;
     const model = editor.getModel();
+    // ANTLR cuenta columnas desde cero; Monaco las cuenta desde uno.
     const markers = (result?.errors || []).filter((error) => error.line > 0).map((error) => ({
       startLineNumber: error.line,
       startColumn: error.column + 1,
@@ -192,6 +199,7 @@ function App() {
     monaco.editor.setModelMarkers(model, 'compiscript', markers);
   }, [result]);
 
+  // La seleccion y el arrastre usan la misma validacion de archivo.
   const loadFile = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.cps')) {
       setResult({
@@ -214,6 +222,7 @@ function App() {
     setResult(null);
   }, []);
 
+  // Un clic en el diagnostico enfoca su posicion dentro del editor.
   const goToError = (error: CompilationError) => {
     if (error.line < 1 || !editorRef.current) return;
     editorRef.current.setPosition({ lineNumber: error.line, column: error.column + 1 });
@@ -221,6 +230,7 @@ function App() {
     editorRef.current.focus();
   };
 
+  // Estas reglas solo colorean el editor; ANTLR hace el analisis real.
   const configureLanguage = (monaco: any) => {
     monaco.languages.register({ id: 'compiscript' });
     monaco.languages.setMonarchTokensProvider('compiscript', {
@@ -240,6 +250,7 @@ function App() {
     });
   };
 
+  // Los contadores resumen cada fase sin ocultar los mensajes individuales.
   const phaseCards = [
     ['Léxico', result?.lexicalErrors ?? '—', 'lexical'],
     ['Sintáctico', result?.syntacticErrors ?? '—', 'syntactic'],
@@ -263,6 +274,7 @@ function App() {
         </div>
       </header>
 
+      {/* El editor y los resultados comparten el espacio principal. */}
       <section className="workspace">
         <article className={`editor-card ${isDragging ? 'is-dragging' : ''}`}
           onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
@@ -320,6 +332,7 @@ function App() {
             ))}
           </div>
 
+          {/* Las pestanas cambian la vista del mismo resultado de analisis. */}
           <nav className="tabs" aria-label="Resultados del análisis">
             {([
               ['errors', 'Diagnósticos', result?.totalErrors], ['ast', 'Árbol', null],

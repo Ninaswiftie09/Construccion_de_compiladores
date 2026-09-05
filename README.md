@@ -80,3 +80,6 @@ docs/              Instalación y arquitectura
 Los archivos generados por ANTLR, entornos virtuales, dependencias de Node y la carpeta local `instrucciones/` están excluidos de Git.
 
 Consulta [la guía de instalación](docs/SETUP.md) y [la arquitectura](docs/ARCHITECTURE.md) para más detalle.
+
+La [guía de reglas semánticas](docs/SEMANTIC_RULES.md) explica las decisiones del
+analizador, los límites de la comprobación estática y los casos para la presentación.

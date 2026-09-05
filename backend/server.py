@@ -10,13 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any, Optional
 
-# Add backend directory to path for imports
+# Permite importar el analizador al iniciar este archivo directamente.
 sys.path.insert(0, str(Path(__file__).parent))
 
 from analyzer.compiler import Compiler, CompilationResult
 
 
-# ===== Pydantic Models =====
+# Pydantic valida el formato de las solicitudes y respuestas.
 
 class CompileRequest(BaseModel):
     """Request model for code compilation"""
@@ -37,7 +37,7 @@ class CompileResponse(BaseModel):
     symbolTable: Optional[dict[str, Any]] = None
 
 
-# ===== FastAPI App Setup =====
+# Crea la API que conecta el IDE con el analizador.
 
 app = FastAPI(
     title="Compiscript Compiler API",
@@ -45,17 +45,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for frontend communication
+# CORS permite conectar una interfaz servida desde otro puerto.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=["*"],  # Configuracion de desarrollo local
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ===== Routes =====
+# Cada ruta recibe datos o informa el estado del servicio.
 
 @app.get("/")
 async def root():
@@ -82,6 +82,7 @@ async def compile_code(request: CompileRequest) -> CompileResponse:
     Returns all errors found in a single execution.
     """
     try:
+        # Cada solicitud usa una tabla y una lista de errores independientes.
         compiler = Compiler()
         result = compiler.compile(request.code)
         
@@ -102,21 +103,22 @@ async def compile_file(file: UploadFile = File(...)) -> CompileResponse:
     Accepts .cps file upload and performs full analysis.
     """
     try:
-        # Check file extension
+        # Rechaza formatos que no correspondan a archivos Compiscript.
         if not file.filename.endswith('.cps'):
             raise HTTPException(
                 status_code=400,
                 detail="File must be a .cps file"
             )
         
-        # Read file content
+        # Decodifica UTF-8 antes de enviar el texto al analizador.
         content = await file.read()
         try:
             source_code = content.decode('utf-8')
         except UnicodeDecodeError as error:
             raise HTTPException(status_code=400, detail="File must use UTF-8 encoding") from error
         
-        # Compile
+        # Analiza el archivo sin ejecutar sus instrucciones.
+        # Cada solicitud usa una tabla y una lista de errores independientes.
         compiler = Compiler()
         result = compiler.compile(source_code)
         
@@ -154,12 +156,12 @@ async def compiler_info():
     }
 
 
-# ===== Development Server =====
+# Punto de entrada para iniciar el servidor durante el desarrollo.
 
 if __name__ == "__main__":
     import uvicorn
     
-    # Check if ANTLR files are generated
+    # Avisa cuando faltan las clases generadas por ANTLR.
     grammar_dir = Path(__file__).parent / "grammar"
     lexer_file = grammar_dir / "CompiscriptLexer.py"
     parser_file = grammar_dir / "CompiscriptParser.py"

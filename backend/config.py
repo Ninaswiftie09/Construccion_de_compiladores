@@ -1,27 +1,27 @@
 """
-Configuration and settings for the Compiscript Compiler
+Valores de referencia para configurar el proyecto.
 """
 import os
 from pathlib import Path
 
-# Project paths
+# Las rutas se calculan desde el archivo para no depender de la terminal.
 PROJECT_ROOT = Path(__file__).parent.parent
 BACKEND_DIR = PROJECT_ROOT / "backend"
 GRAMMAR_DIR = BACKEND_DIR / "grammar"
 ANALYZER_DIR = BACKEND_DIR / "analyzer"
 
-# Server settings
+# Valores disponibles para consumidores que importen esta configuracion.
 SERVER_HOST = os.getenv("COMPILER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.getenv("COMPILER_PORT", "8000"))
 DEBUG_MODE = os.getenv("DEBUG", "False").lower() == "true"
 
-# Frontend settings
+# Direccion local de referencia para la interfaz.
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
-# ANTLR settings
+# La gramatica se genera como clases de Python.
 ANTLR_TARGET_LANGUAGE = "Python3"
 ANTLR_GRAMMAR_FILE = GRAMMAR_DIR / "Compiscript.g4"
 
-# Compiler settings
-MAX_ERRORS_PER_PHASE = 100  # Limit errors to prevent spam
+# Valores de referencia; el orquestador aun no consume estas opciones.
+MAX_ERRORS_PER_PHASE = 100  # Limite reservado para una futura configuracion del listener
 ENABLE_ERROR_RECOVERY = True

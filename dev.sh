@@ -16,13 +16,14 @@ cleanup() {
   echo "✅ Cleanup complete"
 }
 
+# Cierra los servicios cuando termina el script o se presiona Ctrl+C.
 trap cleanup EXIT INT TERM
 
 echo "🚀 Compiscript Compiler - Development Start"
 echo "==========================================="
 echo ""
 
-# Start backend
+# Inicia la API y conserva su PID para cerrarla al salir.
 echo "Starting backend..."
 cd backend
 source venv/bin/activate 2>/dev/null || {
@@ -34,7 +35,7 @@ BACKEND_PID=$!
 echo "✅ Backend started (PID: $BACKEND_PID)"
 sleep 2
 
-# Start frontend
+# Inicia la interfaz en un proceso independiente.
 echo "Starting frontend..."
 cd ../frontend
 npm start &

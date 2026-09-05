@@ -12,7 +12,7 @@ echo.
 cd /d "%~dp0\backend\grammar"
 set ANTLR4_TOOLS_ANTLR_VERSION=4.13.2
 
-REM Check if antlr4 is installed
+REM Verifica que el generador este disponible antes de invocarlo.
 where antlr4 >nul 2>nul
 if errorlevel 1 (
   echo ❌ Error: antlr4 not found

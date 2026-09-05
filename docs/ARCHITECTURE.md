@@ -46,6 +46,13 @@ Reglas cubiertas:
 
 El tipo `unknown` evita diagnósticos derivados cuando un error anterior impide conocer un tipo.
 
+Las funciones se distinguen de sus valores de retorno y las clases conservan una identidad
+por declaración. Los enlaces de herencia tienen detección de ciclos. La recuperación local
+tolera nodos incompletos de ANTLR y sigue recorriendo las sentencias posteriores.
+
+Consulta [las reglas y sus límites](SEMANTIC_RULES.md) para explicar los retornos por
+caminos, los índices de arreglos y las pruebas de regresión.
+
 ### Tabla de símbolos
 
 `backend/analyzer/symbol_table.py` mantiene un árbol de alcances. Cada `Scope` enlaza padre e hijos y guarda sus símbolos en un diccionario.

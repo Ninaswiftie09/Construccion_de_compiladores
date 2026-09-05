@@ -1,19 +1,19 @@
 """
-Error representation model for the Compiscript compiler
+Modelos de diagnosticos y tokens enviados a la interfaz.
 """
 from enum import Enum
 from typing import Optional
 
 
 class ErrorType(str, Enum):
-    """Types of compilation errors"""
+    """Identifica la fase que produjo el diagnostico."""
     LEXICAL = "lexical"
     SYNTACTIC = "syntactic"
     SEMANTIC = "semantic"
 
 
 class CompilationError:
-    """Represents a compilation error with location and message"""
+    """Guarda el mensaje y su ubicacion en el codigo fuente."""
     
     def __init__(
         self,
@@ -29,6 +29,7 @@ class CompilationError:
         self.column = column
         self.context = context
     
+    # Convierte el modelo a datos simples para enviarlos como JSON.
     def to_dict(self):
         return {
             "type": self.error_type.value,
@@ -43,7 +44,7 @@ class CompilationError:
 
 
 class Token:
-    """Represents a lexical token"""
+    """Conserva el tipo, lexema y posicion de un token."""
     
     def __init__(
         self,
@@ -57,6 +58,7 @@ class Token:
         self.line = line
         self.column = column
     
+    # Convierte el modelo a datos simples para enviarlos como JSON.
     def to_dict(self):
         return {
             "type": self.token_type,

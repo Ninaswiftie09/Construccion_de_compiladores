@@ -14,6 +14,7 @@ FRONTEND = ROOT / "frontend"
 
 
 def venv_python() -> Path:
+    # Windows y Unix guardan el interprete virtual en carpetas diferentes.
     folder = "Scripts" if sys.platform == "win32" else "bin"
     executable = "python.exe" if sys.platform == "win32" else "python"
     return BACKEND / "venv" / folder / executable
@@ -32,6 +33,7 @@ def show_help():
 
 
 def setup():
+    # Elige el instalador correspondiente al sistema operativo.
     script = ROOT / ("setup.bat" if sys.platform == "win32" else "setup.sh")
     subprocess.run([str(script)], cwd=ROOT, check=True, shell=sys.platform == "win32")
 
@@ -54,11 +56,13 @@ def start_frontend():
 
 def run_tests():
     python = venv_python() if venv_python().exists() else Path(sys.executable)
+    # Usa las mismas dependencias del backend para ejecutar las pruebas.
     subprocess.run([str(python), "-m", "pytest", "-v"], cwd=ROOT, check=True)
 
 
 def main():
     command = sys.argv[1].lower() if len(sys.argv) > 1 else "help"
+    # Cada comando apunta a una funcion para evitar repetir el arranque.
     actions = {
         "setup": setup,
         "backend": start_backend,

@@ -9,24 +9,24 @@ echo "🚀 Compiscript Compiler Setup"
 echo "=============================="
 echo ""
 
-# Backend Setup
+# Prepara el backend y sus dependencias.
 echo "1️⃣  Setting up backend..."
 cd backend
 
-# Create virtual environment
+# Aisla los paquetes de Python del resto del sistema.
 if [ ! -d "venv" ]; then
   echo "   Creating virtual environment..."
   python -m venv venv
 fi
 
-# Activate virtual environment
+# Los comandos siguientes usan este entorno virtual.
 source venv/bin/activate
 
-# Install dependencies
+# Instala las dependencias declaradas del proyecto.
 echo "   Installing Python dependencies..."
 pip install -q -r requirements.txt
 
-# Generate ANTLR files
+# Genera los analizadores automaticamente a partir de la gramatica.
 echo "   Generating ANTLR parser..."
 cd grammar
 export ANTLR4_TOOLS_ANTLR_VERSION=4.13.2
@@ -44,11 +44,11 @@ cd ..
 
 echo ""
 
-# Frontend Setup
+# Prepara la interfaz y sus dependencias de Node.
 echo "2️⃣  Setting up frontend..."
 cd frontend
 
-# Install dependencies
+# Instala las dependencias declaradas del proyecto.
 echo "   Installing Node.js dependencies..."
 npm install -q
 
