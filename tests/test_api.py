@@ -1,3 +1,4 @@
+# Estas pruebas simulan solicitudes del IDE sin abrir un servidor real.
 """Pruebas de los endpoints usados por el IDE."""
 
 from fastapi.testclient import TestClient

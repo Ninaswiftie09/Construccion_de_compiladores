@@ -1,3 +1,4 @@
+# Se recorren los archivos de demostracion y se comprueba su resultado esperado.
 """Comprueba todos los archivos .cps entregados para calificación."""
 
 from pathlib import Path

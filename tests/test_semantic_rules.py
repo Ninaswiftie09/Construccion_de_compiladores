@@ -1,3 +1,4 @@
+# Cada caso comprueba una regla puntual y ejemplos de funciones y clases.
 """Cobertura adicional de las reglas solicitadas en el enunciado."""
 
 import pytest

@@ -1,3 +1,4 @@
+# Valida las reglas de compatibilidad sin depender del parser.
 """
 Unit tests for type system
 """

@@ -1,3 +1,4 @@
+# Comprueba insercion, busqueda, actualizacion y aislamiento de entornos.
 """
 Unit tests for Symbol Table
 """

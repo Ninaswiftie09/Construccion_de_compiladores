@@ -1,3 +1,4 @@
+# Demostracion por consola; analiza el codigo de ejemplo sin ejecutarlo.
 """
 Example test program demonstrating Compiscript features
 """

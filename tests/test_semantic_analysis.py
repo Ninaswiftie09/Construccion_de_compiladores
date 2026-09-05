@@ -1,3 +1,4 @@
+# Prueba el flujo completo desde el texto hasta los diagnosticos semanticos.
 """Pruebas integrales de las reglas semanticas principales."""
 
 from analyzer.compiler import Compiler
