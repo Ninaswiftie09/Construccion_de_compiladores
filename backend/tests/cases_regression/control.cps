@@ -1,0 +1,1 @@
+let x = 0; if (true) { x = 1; } else { x = 2; } while (x < 5) { x = x + 1; } do { x = x - 1; } while (x > 0); for (let i = 0; i < 3; i = i + 1) { print(i); } foreach (v in [1,2]) { print(v); } switch(x) { case 0: print(x); break; default: print(1); }

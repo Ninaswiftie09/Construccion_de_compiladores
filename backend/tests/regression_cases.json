@@ -1,0 +1,250 @@
+{
+  "arithmetic": {
+    "source": "let x: integer = 2 + 3 * 4; x = x + 1; const z = 8;",
+    "success": true
+  },
+  "logical": {
+    "source": "let b = true && false || !false; let x = b ? 1 : 2;",
+    "success": true
+  },
+  "arrays": {
+    "source": "let a = [1,2,3]; a[1] = 8; print(a[1]);",
+    "success": true
+  },
+  "control": {
+    "source": "let x = 0; if (true) { x = 1; } else { x = 2; } while (x < 5) { x = x + 1; } do { x = x - 1; } while (x > 0); for (let i = 0; i < 3; i = i + 1) { print(i); } foreach (v in [1,2]) { print(v); } switch(x) { case 0: print(x); break; default: print(1); }",
+    "success": true
+  },
+  "recursion": {
+    "source": "function fact(n: integer): integer { if (n == 0) { return 1; } else { return n * fact(n - 1); } } print(fact(5));",
+    "success": true
+  },
+  "classes": {
+    "source": "class A { let x: integer = 1; function get(): integer { return this.x; } } class B: A { function f(): integer { return this.x; } } let b = new B(); print(b.get());",
+    "success": true
+  },
+  "try": {
+    "source": "try { print(1 / 0); } catch (e) { print(e); }",
+    "success": true
+  },
+  "temp": {
+    "source": "let x = (1+2)*(3+4); let y = (5+6)*(7+8);",
+    "success": true
+  },
+  "errors": {
+    "source": "@ let a: integer = \"x\"; # let b: boolean = 3; print(missing);",
+    "success": false
+  },
+  "syntax": {
+    "source": "let a = ; let b = ; print(missing);",
+    "success": false
+  },
+  "malformed_function": {
+    "source": "function f(: integer) {} print(missing); let x: integer = \"bad\";",
+    "success": false
+  },
+  "shadow": {
+    "source": "let x = 1; { print(x); let x = 2; print(x); }",
+    "success": true
+  },
+  "inherit_forward": {
+    "source": "class B: A { function f(): integer { return this.x; } } class A { let x: integer = 1; }",
+    "success": true
+  },
+  "array_new_assign": {
+    "source": "class A { let a: integer[] = [1,2]; } new A().a[0] = 9;",
+    "success": true
+  },
+  "const_reassign": {
+    "source": "const x = 1; x = 2;",
+    "success": false
+  },
+  "try_shadow": {
+    "source": "let e = 7; try { print(e); } catch (e) { print(e); }",
+    "success": true
+  },
+  "class_const": {
+    "source": "class A { const x = 1; function get(): integer { return this.x; } } let a = new A(); print(a.get());",
+    "success": true
+  },
+  "return_try": {
+    "source": "function f(): integer { try { return 1; } catch (e) { return 2; } }",
+    "success": true
+  },
+  "missing_function_name": {
+    "source": "function () {} print(missing); let x: integer = \"bad\";",
+    "success": false
+  },
+  "missing_class_name": {
+    "source": "class { let x = 1; } print(missing); let y: integer = \"bad\";",
+    "success": false
+  },
+  "missing_param": {
+    "source": "function f(a: integer, ) {} print(missing);",
+    "success": false
+  },
+  "broken_type": {
+    "source": "let a: = 1; print(missing); let y: integer = \"bad\";",
+    "success": false
+  },
+  "bad_assignment": {
+    "source": "x = ; print(missing);",
+    "success": false
+  },
+  "inherit_unqualified": {
+    "source": "class A { let x: integer = 1; } class B: A { function f(): integer { return x; } }",
+    "success": true
+  },
+  "override": {
+    "source": "class A { function f(): integer { return 1; } } class B: A { function f(): string { return \"x\"; } } let a: A = new B(); print(a.f() + 1);",
+    "success": false
+  },
+  "foreach_collision": {
+    "source": "let x = [1,2]; foreach(x in x) { print(x); }",
+    "success": true
+  },
+  "class_forward_new": {
+    "source": "let a = new A(1); class A { function constructor(x: integer) {} }",
+    "success": true
+  },
+  "untyped": {
+    "source": "let x; x = 1; x = \"bad\"; print(x + true);",
+    "success": false
+  },
+  "pending_read": {
+    "source": "let x; print(x);",
+    "success": false
+  },
+  "pending_first_assignment": {
+    "source": "let x; x=1; print(x+1);",
+    "success": true
+  },
+  "pending_expression_assignment": {
+    "source": "let x; print(x=1); print(x+1);",
+    "success": true
+  },
+  "pending_assignment_mismatch": {
+    "source": "let x; print(x=1); x=\"bad\";",
+    "success": false
+  },
+  "forward_inferred_field": {
+    "source": "class B:A {function f():integer{return this.x;}} class A {let x=1;}",
+    "success": true
+  },
+  "forward_method": {
+    "source": "let a=new A(); print(a.f()); class A {function f():integer{return 1;}}",
+    "success": true
+  },
+  "field_after_method": {
+    "source": "class A {function f():integer{return this.x;} let x=1;}",
+    "success": true
+  },
+  "inherited_assignment": {
+    "source": "class A {let x=1;} class B:A {function f(){x=2;}}",
+    "success": true
+  },
+  "override_parameters": {
+    "source": "class A {function f(x:integer){}} class B:A {function f(x:string){}}",
+    "success": false
+  },
+  "override_arity": {
+    "source": "class A {function f(x:integer){}} class B:A {function f(){}}",
+    "success": false
+  },
+  "override_valid": {
+    "source": "class B:A {function f(x:integer):integer{return x+1;}} class A {function f(x:integer):integer{return x;}}",
+    "success": true
+  },
+  "override_covariant": {
+    "source": "class A {function f():A {return new A();}} class B:A {function f():B {return new B();}}",
+    "success": true
+  },
+  "field_override_type": {
+    "source": "class A {let x=1;} class B:A {let x=\"s\";}",
+    "success": false
+  },
+  "member_override_kind": {
+    "source": "class A {function x(){}} class B:A {let x=1;}",
+    "success": false
+  },
+  "cyclic_inference": {
+    "source": "class A {let x=y; let y=x;}",
+    "success": false
+  },
+  "cyclic_inheritance": {
+    "source": "class A:B {} class B:A {}",
+    "success": false
+  },
+  "unknown_parent": {
+    "source": "class A:Missing {}",
+    "success": false
+  },
+  "nested_class": {
+    "source": "function f(){class B:A {function f():integer{return this.x;}} class A {let x=1;} let b=new B(); print(b.f());} f();",
+    "success": true
+  },
+  "forward_global_initializer": {
+    "source": "let g=1; let a=new A(); print(a.x); class A {let x=g;}",
+    "success": true
+  },
+  "bad_array_index": {
+    "source": "let a=[1,2]; print(a[true]);",
+    "success": false
+  },
+  "bad_array_bounds": {
+    "source": "let a=[1,2]; print(a[2]);",
+    "success": false
+  },
+  "bad_return": {
+    "source": "function f():integer {return \"s\";}",
+    "success": false
+  },
+  "bad_condition": {
+    "source": "if(1) {}",
+    "success": false
+  },
+  "bad_call": {
+    "source": "function f(x:integer){} f(\"s\");",
+    "success": false
+  },
+  "break_outside": {
+    "source": "break;",
+    "success": false
+  },
+  "continue_switch": {
+    "source": "switch(1){case 1: continue;}",
+    "success": false
+  },
+  "continue_loop_switch": {
+    "source": "while(true){switch(1){case 1:continue;}}",
+    "success": true
+  },
+  "break_try": {
+    "source": "while(true){try{break;}catch(e){print(e);}}",
+    "success": true
+  },
+  "for_optional_condition": {
+    "source": "for(let i=0;;i=i+1){break;}",
+    "success": true
+  },
+  "for_empty": {
+    "source": "for(;;){break;}",
+    "success": true
+  },
+  "for_optional_update": {
+    "source": "for(let i=0;i<3;){i=i+1;}",
+    "success": true
+  },
+  "mutual_recursion": {
+    "source": "function f(n:integer):integer {if(n==0){return 0;}else{return g(n-1);}} function g(n:integer):integer {return f(n);} print(f(2));",
+    "success": true
+  },
+  "constructor_args": {
+    "source": "class A{let x=0; function constructor(x:integer){this.x=x;}} let a=new A(2);",
+    "success": true
+  },
+  "inherited_constructor": {
+    "source": "class B:A {} class A{let x=0; function constructor(x:integer){this.x=x;}} let b=new B(2);",
+    "success": true
+  }
+}

@@ -4,7 +4,6 @@ import json
 import subprocess
 import uuid
 from pathlib import Path
-from analyzer.tac import TACGenerator
 
 
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "output" / "diagrams"
@@ -69,6 +68,7 @@ def symbol_graph(root):
 
 
 def control_graph(code):
+    from analyzer.tac import TACGenerator
     # Se separan bloques en etiquetas y despues de cada salto.
     graph = Graph("TB")
     graph.lines.extend(['pack=true;', 'packmode="array_u1";'])

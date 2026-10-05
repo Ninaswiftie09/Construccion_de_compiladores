@@ -40,6 +40,10 @@ class SemanticAnalyzer(CompiscriptVisitor):
         self._classes: dict[int, Symbol] = {}
         self._function_stack: list[Symbol] = []
         self._class_stack: list[Symbol] = []
+        self._class_scopes = {}
+        self._field_declarations = {}
+        self._resolving_fields = set()
+        self._resolved_fields = set()
 
     # ----- Utilidades -----
 
@@ -47,6 +51,8 @@ class SemanticAnalyzer(CompiscriptVisitor):
         # ANTLR puede dejar hijos ausentes al recuperar una sentencia incompleta.
         if tree is None:
             return ExprInfo()
+        if hasattr(tree, "getRuleIndex") and not getattr(tree, "children", None):
+            return ExprInfo()  # Regla incompleta durante la recuperacion de ANTLR.
         # Una declaracion sin nombre ya tiene diagnostico sintactico del parser.
         if type(tree).__name__ in ("VariableDeclarationContext", "ConstantDeclarationContext") and tree.Identifier() is None:
             return None
@@ -115,6 +121,15 @@ class SemanticAnalyzer(CompiscriptVisitor):
             return UNKNOWN_TYPE
         accessor = getattr(annotation, "type_", None) or getattr(annotation, "type", None)
         type_ctx = accessor() if accessor else annotation
+        # No interpretar tokens sinteticos de recuperacion como nombres de clase.
+        def damaged(node):
+            if node is None:
+                return True
+            if hasattr(node, "getSymbol"):
+                return node.getSymbol().tokenIndex < 0 or type(node).__name__ == "ErrorNodeImpl"
+            return any(damaged(child) for child in node.getChildren())
+        if type_ctx is None or not type_ctx.getText() or damaged(type_ctx):
+            return UNKNOWN_TYPE
         result = self._type_from_text(type_ctx.getText())
 
         def resolve(value):
@@ -198,8 +213,82 @@ class SemanticAnalyzer(CompiscriptVisitor):
             if declaration is not None:
                 symbol = self._declaration_symbols[id(declaration)]
                 symbol.base_symbol = self._lookup_class(symbol.base_class)
+        # Las firmas y campos de TODAS las clases existen antes de los cuerpos.
+        for statement in statements or []:
+            declaration = statement.classDeclaration() if hasattr(statement, "classDeclaration") else None
+            if declaration is not None:
+                self._prepare_class(declaration)
+
+    def _prepare_class(self, ctx):
+        symbol = self._declaration_symbols[id(ctx)]
+        if id(symbol) in self._class_scopes:
+            return
+        previous = getattr(self.symbol_table, "context", None)
+        self.symbol_table.context = ctx
+        scope = self.symbol_table.enter_scope("class", symbol.name)
+        self.symbol_table.context = previous
+        self._class_scopes[id(symbol)] = scope
+        scope.class_symbol = symbol
+        self.symbol_table.define_symbol(Symbol("this", "variable", symbol.data_type, is_initialized=True))
+        try:
+            for member in ctx.classMember():
+                function = member.functionDeclaration()
+                if function is not None:
+                    self._declare_function(function, symbol)
+                    continue
+                variable, constant = member.variableDeclaration(), member.constantDeclaration()
+                declaration = variable or constant
+                if declaration is None or declaration.Identifier() is None:
+                    continue
+                name = declaration.Identifier().getText()
+                field = Symbol(name, "attribute", self._type_from_annotation(declaration.typeAnnotation()),
+                               declaration.start.line, declaration.start.column, constant is not None,
+                               constant is not None or variable.initializer() is not None)
+                if name in symbol.attributes:
+                    self._error(declaration, f"El miembro '{name}' ya fue declarado en la clase '{symbol.name}'")
+                else:
+                    symbol.attributes[name] = field
+                    self.symbol_table.define_symbol(field)
+                self._declaration_symbols[id(declaration)] = field
+                self._field_declarations[id(field)] = (declaration, symbol, scope)
+        finally:
+            self.symbol_table.exit_scope()
+
+    def _resolve_field(self, field):
+        entry = self._field_declarations.get(id(field))
+        if entry is None or id(field) in self._resolved_fields:
+            return
+        declaration, owner, scope = entry
+        if id(field) in self._resolving_fields:
+            self._error(declaration, f"Inicializacion circular del atributo '{field.name}'")
+            return
+        self._resolving_fields.add(id(field))
+        saved_scope = self.symbol_table.current_scope
+        self.symbol_table.current_scope = scope
+        self._class_stack.append(owner)
+        try:
+            self.visit(declaration)
+            self._resolved_fields.add(id(field))
+        finally:
+            self._class_stack.pop()
+            self.symbol_table.current_scope = saved_scope
+            self._resolving_fields.remove(id(field))
 
     # Busca solamente la clase visible desde el alcance actual.
+    def _lookup_value(self, name):
+        scope = self.symbol_table.current_scope
+        while scope is not None:
+            symbol = scope.lookup_in_scope(name)
+            if symbol is not None:
+                return symbol
+            owner = getattr(scope, "class_symbol", None)
+            if owner is not None:
+                inherited = self._lookup_member(owner.base_symbol, name)
+                if inherited is not None:
+                    return inherited
+            scope = scope.parent
+        return None
+
     def _lookup_class(self, name: Optional[str]) -> Optional[Symbol]:
         symbol = self.symbol_table.lookup_symbol(name or "")
         return symbol if symbol and symbol.symbol_type == "class" else None
@@ -214,7 +303,10 @@ class SemanticAnalyzer(CompiscriptVisitor):
         while class_symbol and id(class_symbol) not in visited:
             visited.add(id(class_symbol))
             if name in class_symbol.attributes:
-                return class_symbol.attributes[name]
+                member = class_symbol.attributes[name]
+                if member.symbol_type == "attribute" and member.data_type.is_unknown():
+                    self._resolve_field(member)
+                return member
             class_symbol = class_symbol.base_symbol
         return None
 
@@ -240,6 +332,11 @@ class SemanticAnalyzer(CompiscriptVisitor):
             return
         if target.symbol.is_const:
             self._error(ctx, f"No se puede reasignar la constante '{target.symbol.name}'")
+        if (getattr(target.symbol, "type_pending", False) and not target.indexed
+                and not value.type_info.is_unknown() and value.type_info != NULL_TYPE):
+            target.symbol.data_type = value.type_info
+            target.symbol.type_pending = False
+            target.type_info = value.type_info
         if not self._is_assignable(target.type_info, value.type_info):
             self._error(ctx, f"No se puede asignar {value.type_info} a {target.type_info}")
         target.symbol.is_initialized = True
@@ -354,6 +451,7 @@ class SemanticAnalyzer(CompiscriptVisitor):
         else:
             symbol.data_type = final_type
             symbol.is_initialized = value is not None
+        symbol.type_pending = ctx.typeAnnotation() is None and final_type.is_unknown() and value is None
         if value and not self._is_assignable(final_type, value.type_info):
             self._error(ctx, f"La variable '{name}' es {final_type}, pero recibe {value.type_info}")
         symbol.array_length = value.array_length if value else None
@@ -421,44 +519,35 @@ class SemanticAnalyzer(CompiscriptVisitor):
                         break
                     visited.add(id(parent))
                     parent = parent.base_symbol
-        self.symbol_table.enter_scope("class", symbol.name)
+        self._prepare_class(ctx)
+        scope = self._class_scopes[id(symbol)]
+        self.symbol_table.current_scope = scope
+        self.symbol_table.scopes_stack.append(scope)
         self._class_stack.append(symbol)
-        self.symbol_table.define_symbol(Symbol("this", "variable", symbol.data_type, is_initialized=True))
-
-        # Se registran todos los miembros antes de analizar los metodos.
-        for member in ctx.classMember():
-            function = member.functionDeclaration()
-            variable = member.variableDeclaration()
-            constant = member.constantDeclaration()
-            if function is not None:
-                self._declare_function(function, symbol)
-                continue
-            declaration = variable or constant
-            if declaration is None or declaration.Identifier() is None:
-                continue  # El parser ya marco este miembro incompleto.
-            name = declaration.Identifier().getText()
-            data_type = self._type_from_annotation(declaration.typeAnnotation())
-            field = Symbol(
-                name,
-                "attribute",
-                data_type,
-                declaration.start.line,
-                declaration.start.column,
-                constant is not None,
-                declaration.initializer() is not None if variable is not None else True,
-            )
-            if name in symbol.attributes:
-                self._error(declaration, f"El miembro '{name}' ya fue declarado en la clase '{symbol.name}'")
-            else:
-                symbol.attributes[name] = field
-            if not self.symbol_table.define_symbol(field):
-                self._error(declaration, f"El identificador '{name}' ya fue declarado en este alcance")
-            self._declaration_symbols[id(declaration)] = field
-
-        for member in ctx.classMember():
-            self.visit(member)
-        self._class_stack.pop()
-        self.symbol_table.exit_scope()
+        try:
+            # Tipar campos antes de cuerpos; tambien admite campos posteriores al metodo.
+            for member in ctx.classMember():
+                declaration = member.variableDeclaration() or member.constantDeclaration()
+                if declaration is not None and id(declaration) in self._declaration_symbols:
+                    self._resolve_field(self._declaration_symbols[id(declaration)])
+            for name, member in symbol.attributes.items():
+                inherited = self._lookup_member(symbol.base_symbol, name)
+                if inherited is None or name == "constructor":
+                    continue
+                if member.symbol_type != inherited.symbol_type:
+                    self._error(ctx, f"El miembro '{name}' cambia la clase de miembro heredado")
+                elif member.symbol_type == "method":
+                    same_parameters = [t for _, t in member.parameters] == [t for _, t in inherited.parameters]
+                    if not same_parameters or not self._is_assignable(inherited.return_type, member.return_type):
+                        self._error(ctx, f"La sobrescritura de '{name}' tiene una firma incompatible con la clase base")
+                elif member.data_type != inherited.data_type or member.is_const != inherited.is_const:
+                    self._error(ctx, f"El atributo heredado '{name}' debe conservar su tipo y mutabilidad")
+            for member in ctx.classMember():
+                if member.functionDeclaration():
+                    self.visit(member.functionDeclaration())
+        finally:
+            self._class_stack.pop()
+            self.symbol_table.exit_scope()
         return None
 
     # ----- Sentencias -----
@@ -468,7 +557,7 @@ class SemanticAnalyzer(CompiscriptVisitor):
         expressions = ctx.expression()
         if len(expressions) == 1:
             name = ctx.Identifier().getText()
-            symbol = self.symbol_table.lookup_symbol(name)
+            symbol = self._lookup_value(name)
             if symbol is None:
                 self._error(ctx, f"La variable '{name}' no fue declarada")
                 target = ExprInfo()
@@ -541,11 +630,14 @@ class SemanticAnalyzer(CompiscriptVisitor):
         elif ctx.assignment():
             self.visit(ctx.assignment())
         # El ultimo punto y coma separa la condicion de la actualizacion opcional.
-        semicolons = [child.symbol.tokenIndex for child in ctx.children
-                      if hasattr(child, "symbol") and child.getText() == ";"]
-        boundary = semicolons[-1]
+        # La posicion del hijo funciona incluso si ANTLR inserto un ';' sin tokenIndex.
+        semicolons = [index for index, child in enumerate(ctx.children or [])
+                      if hasattr(child, "symbol") and
+                      0 <= child.symbol.type < len(ctx.parser.literalNames) and
+                      ctx.parser.literalNames[child.symbol.type] == "';'"]
+        boundary = semicolons[-1] if semicolons else None
         for expression in ctx.expression():
-            if expression.start.tokenIndex < boundary:
+            if boundary is not None and ctx.children.index(expression) < boundary:
                 self._check_condition(expression, ctx, "for")
             else:
                 self.visit(expression)
@@ -599,8 +691,9 @@ class SemanticAnalyzer(CompiscriptVisitor):
         self._forget_lengths()
         self.visit(ctx.block(0))
         self.symbol_table.enter_scope("catch")
-        name = ctx.Identifier().getText()
-        self.symbol_table.define_symbol(Symbol(name, "variable", UNKNOWN_TYPE, ctx.start.line, ctx.start.column, is_initialized=True))
+        if ctx.Identifier() is not None:
+            name = ctx.Identifier().getText()
+            self.symbol_table.define_symbol(Symbol(name, "variable", UNKNOWN_TYPE, ctx.start.line, ctx.start.column, is_initialized=True))
         self.visit(ctx.block(1))
         self.symbol_table.exit_scope()
         self._forget_lengths()
@@ -631,7 +724,18 @@ class SemanticAnalyzer(CompiscriptVisitor):
 
     # Una asignacion usada como expresion conserva el tipo del valor asignado.
     def visitAssignExpr(self, ctx):
-        target = self._expr(self.visit(ctx.lhs))
+        atom = ctx.lhs.primaryAtom()
+        if not ctx.lhs.suffixOp() and type(atom).__name__ == "IdentifierExprContext":
+            name = atom.Identifier().getText()
+            symbol = self._lookup_value(name)
+            if symbol is None:
+                self._error(ctx, f"El identificador '{name}' no fue declarado")
+                target = ExprInfo()
+            else:
+                ctx.lhs._resolved_symbol = symbol
+                target = ExprInfo(symbol.data_type, symbol, symbol.symbol_type in ("variable", "constant", "parameter", "attribute"))
+        else:
+            target = self._expr(self.visit(ctx.lhs))
         value = self._expr(self.visit(ctx.assignmentExpr()))
         self._check_assignment(target, value, ctx)
         return value
@@ -679,9 +783,12 @@ class SemanticAnalyzer(CompiscriptVisitor):
 
     # Los dos operandos logicos deben ser booleanos.
     def _logical_operation(self, left: ExprInfo, right: ExprInfo, operator: str, ctx) -> ExprInfo:
+        if left.type_info.is_unknown() or right.type_info.is_unknown():
+            return ExprInfo()
         allowed = (DataType.BOOLEAN, DataType.UNKNOWN)
         if left.type_info.base not in allowed or right.type_info.base not in allowed:
             self._error(ctx, f"'{operator}' requiere boolean y recibio {left.type_info} y {right.type_info}")
+            return ExprInfo()
         return ExprInfo(TypeInfo(DataType.BOOLEAN))
 
     # Valida igualdad y desigualdad con las mismas reglas de compatibilidad.
@@ -694,8 +801,11 @@ class SemanticAnalyzer(CompiscriptVisitor):
 
     # El resultado de una comparacion siempre tiene tipo boolean.
     def _comparison(self, left: ExprInfo, right: ExprInfo, operator: str, ctx) -> ExprInfo:
+        if left.type_info.is_unknown() or right.type_info.is_unknown():
+            return ExprInfo()
         if not left.type_info.is_comparable(right.type_info):
             self._error(ctx, f"No se puede comparar {left.type_info} con {right.type_info} usando '{operator}'")
+            return ExprInfo()
         return ExprInfo(TypeInfo(DataType.BOOLEAN))
 
     # Procesa suma y resta despues de las multiplicaciones.
@@ -727,10 +837,14 @@ class SemanticAnalyzer(CompiscriptVisitor):
             return self._expr(self.visit(ctx.primaryExpr()))
         operand = self._expr(self.visit(ctx.unaryExpr()))
         operator = ctx.getChild(0).getText()
+        if operand.type_info.is_unknown():
+            return ExprInfo()
         if operator == "!" and operand.type_info.base not in (DataType.BOOLEAN, DataType.UNKNOWN):
             self._error(ctx, f"'!' requiere boolean, no {operand.type_info}")
+            return ExprInfo()
         if operator == "-" and not operand.type_info.is_numeric() and not operand.type_info.is_unknown():
             self._error(ctx, f"'-' requiere un numero, no {operand.type_info}")
+            return ExprInfo()
         return ExprInfo(TypeInfo(DataType.BOOLEAN)) if operator == "!" else operand
 
     # Los parentesis conservan el tipo de la expresion interna.
@@ -771,9 +885,14 @@ class SemanticAnalyzer(CompiscriptVisitor):
     # Recupera el simbolo visible y distingue valores de funciones.
     def visitIdentifierExpr(self, ctx):
         name = ctx.Identifier().getText()
-        symbol = self.symbol_table.lookup_symbol(name)
+        symbol = self._lookup_value(name)
         if symbol is None:
             self._error(ctx, f"El identificador '{name}' no fue declarado")
+            return ExprInfo()
+        if symbol.symbol_type == "attribute" and symbol.data_type.is_unknown():
+            self._resolve_field(symbol)
+        if getattr(symbol, "type_pending", False):
+            self._error(ctx, f"No se ha definido el tipo de '{name}'; asigna un valor o declara su tipo antes de usarlo")
             return ExprInfo()
         # Una funcion tiene identidad invocable; su retorno solo aparece al llamarla.
         data_type = TypeInfo(DataType.FUNCTION) if symbol.symbol_type in ("function", "method") else symbol.data_type

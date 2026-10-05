@@ -1,0 +1,24 @@
+test_compile_response_and_graphviz_fallback (test_api_regressions.ApiRegressionTests.test_compile_response_and_graphviz_fallback) ... ok
+test_invalid_encoding (test_api_regressions.ApiRegressionTests.test_invalid_encoding) ... ok
+test_invalid_extension (test_api_regressions.ApiRegressionTests.test_invalid_extension) ... ok
+test_invalid_source_has_no_tac_file (test_api_regressions.ApiRegressionTests.test_invalid_source_has_no_tac_file) ... ok
+test_missing_generated_parser_is_diagnostic (test_api_regressions.ApiRegressionTests.test_missing_generated_parser_is_diagnostic) ... ok
+test_real_graphviz_outputs (test_api_regressions.ApiRegressionTests.test_real_graphviz_outputs) ... ok
+test_upload_file (test_api_regressions.ApiRegressionTests.test_upload_file) ... ok
+test_assignment_expression_fixes_type (test_backend_regressions.CompilerRegressionTests.test_assignment_expression_fixes_type) ... ok
+test_compiler_reuse_does_not_keep_errors (test_backend_regressions.CompilerRegressionTests.test_compiler_reuse_does_not_keep_errors) ... ok
+test_incomplete_constructs_keep_following_diagnostics (test_backend_regressions.CompilerRegressionTests.test_incomplete_constructs_keep_following_diagnostics) ... ok
+test_inheritance_preserves_offsets_and_dispatch (test_backend_regressions.CompilerRegressionTests.test_inheritance_preserves_offsets_and_dispatch) ... ok
+test_labels_and_layout_for_all_valid_cases (test_backend_regressions.CompilerRegressionTests.test_labels_and_layout_for_all_valid_cases) ... ok
+test_language_cases_and_error_gating (test_backend_regressions.CompilerRegressionTests.test_language_cases_and_error_gating) ... ok
+test_recovery_keeps_later_errors (test_backend_regressions.CompilerRegressionTests.test_recovery_keeps_later_errors) ... ok
+test_recovery_with_deleted_tokens (test_backend_regressions.CompilerRegressionTests.test_recovery_with_deleted_tokens) ... ok
+test_recursion_has_call_and_distinct_frame (test_backend_regressions.CompilerRegressionTests.test_recursion_has_call_and_distinct_frame) ... ok
+test_shadowed_identifier_keeps_original_binding (test_backend_regressions.CompilerRegressionTests.test_shadowed_identifier_keeps_original_binding) ... ok
+test_short_circuit_guards_rhs_call (test_backend_regressions.CompilerRegressionTests.test_short_circuit_guards_rhs_call) ... ok
+test_temporaries_recycled_and_reserved_in_frame (test_backend_regressions.CompilerRegressionTests.test_temporaries_recycled_and_reserved_in_frame) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 6.075s
+
+OK

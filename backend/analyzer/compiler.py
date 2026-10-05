@@ -111,7 +111,7 @@ class Compiler:
             self.result.lexical_errors.append(
                 CompilationError(
                     ErrorType.LEXICAL,
-                    "No se encontro el lexer generado por ANTLR. Ejecuta generate_parser.bat o generate_parser.sh.",
+                    "No se encontro el lexer generado por ANTLR. Ejecuta python generate_parser.py --jar ruta/antlr-4.13.2-complete.jar.",
                 )
             )
         except Exception as error:
@@ -166,6 +166,7 @@ class Compiler:
             from analyzer.semantic import SemanticAnalyzer
 
             analyzer = SemanticAnalyzer()
+            self.result.semantic_errors = analyzer.errors
             analyzer.visit(self.result._parse_tree)
             self.result.semantic_errors = analyzer.get_errors()
             if not self.result.has_errors():
@@ -173,6 +174,7 @@ class Compiler:
                 self.result.intermediate_code = TACGenerator(analyzer).generate(self.result._parse_tree)
             self.result.symbol_table = analyzer.symbol_table.to_dict()
         except Exception as error:
+            self.result.intermediate_code = None
             self.result.semantic_errors.append(
                 CompilationError(ErrorType.SEMANTIC, f"Fallo interno del analisis semantico: {error}")
             )

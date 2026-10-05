@@ -1,0 +1,1 @@
+let x = 1; { print(x); let x = 2; print(x); }

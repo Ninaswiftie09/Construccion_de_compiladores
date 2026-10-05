@@ -179,7 +179,7 @@ if __name__ == "__main__":
     lexer_file = grammar_dir / "CompiscriptLexer.py"
     parser_file = grammar_dir / "CompiscriptParser.py"
     
-    if not lexer_file.exists() or not parser_file.exists():
+    if not lexer_file.exists() or not parser_file.exists() or not (grammar_dir / "CompiscriptVisitor.py").exists():
         print("Warning: ANTLR generated files not found!")
         print("Please run: cd backend/grammar && antlr4 -Dlanguage=Python3 -visitor -listener Compiscript.g4")
         print()
