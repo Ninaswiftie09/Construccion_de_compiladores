@@ -62,3 +62,5 @@ instrucciones/
 .env
 test_outputs/
 tmp/
+output/diagrams/
+GUIA_DEFENSA_PROYECTO.md
