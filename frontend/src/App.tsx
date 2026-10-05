@@ -55,9 +55,12 @@ interface CompilationResult {
   tokens: TokenInfo[];
   ast: AstNode | null;
   symbolTable: SymbolScope | null;
+  intermediateCode?: { text: string; instructions: { op: string }[]; temporaries: { frame: string; created: number; reused: number; peakLive: number }[] } | null;
+  diagrams?: Record<string, { url: string; pngUrl: string; path: string }>;
+  diagramWarnings?: string[];
 }
 
-type PanelTab = 'errors' | 'ast' | 'symbols' | 'tokens';
+type PanelTab = 'errors' | 'ast' | 'symbols' | 'tokens' | 'tac';
 
 const initialCode = `// Analiza este programa con Ctrl + Enter
 function fibonacci(n: integer): integer {
@@ -86,42 +89,26 @@ break;
 let activo: boolean = 1 && false;`,
 };
 
-// Cada nodo dibuja sus hijos; details permite expandir el arbol.
-function AstTree({ node, depth = 0 }: { node: AstNode; depth?: number }) {
-  const isToken = node.name === 'token';
-  if (isToken) {
-    return <div className="tree-token"><span>{node.text || 'EOF'}</span><small>L{node.line}</small></div>;
-  }
+// La imagen completa se puede ampliar y descargar.
+function Diagram({ diagram, title }: { diagram?: { url: string; pngUrl: string; path: string }; title: string }) {
+  const [zoom, setZoom] = useState(1);
+  const [fit, setFit] = useState(true);
+  const [naturalWidth, setNaturalWidth] = useState(1000);
   return (
-    <details className="tree-branch" open={depth < 2}>
-      <summary><span>{node.name}</span><small>{node.children.length} nodos</small></summary>
-      <div className="tree-children">
-        {node.children.map((child, index) => <AstTree key={`${child.name}-${index}`} node={child} depth={depth + 1} />)}
+    <div className="diagram-view">
+      <div className="diagram-toolbar"><strong>{title}</strong>
+        <button className="button button-quiet" onClick={() => { setFit(false); setZoom(Math.max(.25, zoom - .25)); }} aria-label="Reducir diagrama">−</button>
+        <button className="button button-quiet" onClick={() => { setFit(false); setZoom(1); }}>{fit ? 'Tamaño real' : `${Math.round(zoom * 100)}%`}</button>
+        <button className="button button-quiet" onClick={() => { setFit(false); setZoom(Math.min(4, zoom + .25)); }} aria-label="Ampliar diagrama">+</button>
+        <button className="button button-quiet" onClick={() => setFit(true)}>Ajustar</button>
+        {diagram && <a className="button button-quiet" href={diagram.pngUrl} download>PNG</a>}
       </div>
-    </details>
-  );
-}
-
-// Los bloques anidados muestran donde se declaro cada identificador.
-function ScopeTree({ scope, depth = 0 }: { scope: SymbolScope; depth?: number }) {
-  return (
-    <details className="scope-card" open={depth < 2}>
-      <summary>
-        <span className="scope-dot" />
-        <strong>{scope.name || scope.type}</strong>
-        <small>{scope.type} · {scope.symbols.length} símbolos</small>
-      </summary>
-      <div className="scope-content">
-        {scope.symbols.length === 0 && <p className="muted-copy">Sin símbolos en este alcance.</p>}
-        {scope.symbols.map((symbol) => (
-          <div className="symbol-row" key={`${symbol.name}-${symbol.line}`}>
-            <div><strong>{symbol.name}</strong><span>{symbol.type}</span></div>
-            <code>{symbol.dataType}</code>
-          </div>
-        ))}
-        {scope.children.map((child, index) => <ScopeTree key={`${child.name}-${index}`} scope={child} depth={depth + 1} />)}
-      </div>
-    </details>
+      {diagram ? <>
+        <p className="section-note">Guardado en {diagram.path}</p>
+        <div className="diagram-canvas"><img src={diagram.url} alt={title} onLoad={(event) => setNaturalWidth(event.currentTarget.naturalWidth || 1000)} style={{ width: fit ? '100%' : `${naturalWidth * zoom}px`, maxWidth: 'none' }} /></div>
+        <a className="diagram-link" href={diagram.url} target="_blank" rel="noreferrer">Abrir imagen completa ↗</a>
+      </> : <div className="empty-panel"><h3>Diagrama no disponible</h3><p>Revisa los avisos del resultado.</p></div>}
+    </div>
   );
 }
 
@@ -135,15 +122,21 @@ function App() {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const revisionRef = useRef(0);
+  const requestRef = useRef(0);
 
   // Envia el texto al backend y guarda los resultados de las tres fases.
   const handleCompile = useCallback(async () => {
+    const revision = revisionRef.current;
+    const request = ++requestRef.current;
     setLoading(true);
     try {
       const response = await axios.post<CompilationResult>('/compile', { code });
+      if (revision !== revisionRef.current || request !== requestRef.current) return;
       setResult(response.data);
-      setActiveTab(response.data.success ? 'ast' : 'errors');
+      setActiveTab(response.data.success ? 'tac' : 'errors');
     } catch (requestError) {
+      if (revision !== revisionRef.current || request !== requestRef.current) return;
       const detail = axios.isAxiosError(requestError) && requestError.response?.data?.detail;
       setResult({
         success: false,
@@ -165,7 +158,7 @@ function App() {
       setActiveTab('errors');
     } finally {
       // El boton vuelve a habilitarse incluso si falla la conexion.
-      setLoading(false);
+      if (request === requestRef.current) setLoading(false);
     }
   }, [code]);
 
@@ -217,6 +210,7 @@ function App() {
       setActiveTab('errors');
       return;
     }
+    revisionRef.current += 1;
     setCode(await file.text());
     setFileName(file.name);
     setResult(null);
@@ -262,7 +256,7 @@ function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">C</div>
-          <div><strong>Compiscript</strong><span>Analizador estático</span></div>
+          <div><strong>Los Tres Furiosos 2.0</strong><span>Compiscript · Análisis y TAC</span></div>
         </div>
         <div className="topbar-actions">
           <div className="file-pill"><span className="file-status" />{fileName}</div>
@@ -287,7 +281,7 @@ function App() {
               <button className="button button-quiet" onClick={() => fileInputRef.current?.click()}>Abrir .cps</button>
               <select aria-label="Cargar ejemplo" defaultValue="" onChange={(event) => {
                 const key = event.target.value as keyof typeof examples;
-                if (key) { setCode(examples[key]); setFileName(`${key}.cps`); setResult(null); event.target.value = ''; }
+                if (key) { revisionRef.current += 1; setCode(examples[key]); setFileName(`${key}.cps`); setResult(null); event.target.value = ''; }
               }}>
                 <option value="" disabled>Ejemplos</option>
                 <option value="factorial">Factorial válido</option>
@@ -303,7 +297,7 @@ function App() {
               value={code}
               beforeMount={configureLanguage}
               onMount={(editor, monaco) => { editorRef.current = editor; monacoRef.current = monaco; }}
-              onChange={(value) => setCode(value || '')}
+              onChange={(value) => { revisionRef.current += 1; setCode(value || ''); setResult(null); }}
               theme="vs-dark"
               options={{
                 minimap: { enabled: false }, fontSize: 14, lineHeight: 23,
@@ -321,7 +315,7 @@ function App() {
             <div>
               <p className="eyebrow">Resultado</p>
               <h2>{!result ? 'Listo para analizar' : result.success ? 'Sin errores' : `${result.totalErrors} ${result.totalErrors === 1 ? 'problema' : 'problemas'}`}</h2>
-              <p>{!result ? 'Abre un archivo o escribe código para comenzar.' : result.success ? 'Las tres fases finalizaron correctamente.' : 'Revisa los diagnósticos; el análisis continuó tras cada error.'}</p>
+              <p>{!result ? 'Abre un archivo o escribe código para comenzar.' : result.success ? `Análisis completo · ${result.intermediateCode?.instructions.length ?? 0} instrucciones TAC.` : 'Revisa los diagnósticos. No se generó código intermedio.'}</p>
             </div>
             <div className={`result-orb ${result ? (result.success ? 'ok' : 'fail') : ''}`}><span>{result ? (result.success ? '✓' : result.totalErrors) : 'C'}</span></div>
           </div>
@@ -336,7 +330,7 @@ function App() {
           <nav className="tabs" aria-label="Resultados del análisis">
             {([
               ['errors', 'Diagnósticos', result?.totalErrors], ['ast', 'Árbol', null],
-              ['symbols', 'Símbolos', null], ['tokens', 'Tokens', result?.tokenCount],
+              ['symbols', 'Símbolos', null], ['tac', 'TAC', result?.intermediateCode?.instructions.length], ['tokens', 'Tokens', result?.tokenCount],
             ] as [PanelTab, string, number | null | undefined][]).map(([tab, label, count]) => (
               <button key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>
                 {label}{typeof count === 'number' && <span>{count}</span>}
@@ -345,6 +339,7 @@ function App() {
           </nav>
 
           <div className="panel-content">
+            {result?.diagramWarnings?.map((warning) => <p className="diagram-warning" key={warning}>{warning}</p>)}
             {!result && <div className="empty-panel"><div className="empty-glyph">{'{ }'}</div><h3>Todo ocurre aquí</h3><p>Los errores, el árbol y los símbolos aparecerán dentro del IDE.</p></div>}
 
             {result && activeTab === 'errors' && (
@@ -360,9 +355,15 @@ function App() {
               </div>
             )}
 
-            {result && activeTab === 'ast' && (result.ast ? <div className="tree-view"><p className="section-note">Árbol sintáctico generado por ANTLR. Expande cualquier regla para inspeccionarla.</p><AstTree node={result.ast} /></div> : <div className="empty-panel"><h3>Árbol no disponible</h3><p>Corrige los errores críticos del parser e intenta de nuevo.</p></div>)}
+            {result && activeTab === 'ast' && <Diagram key={`ast-${result.diagrams?.ast?.url}`} diagram={result.diagrams?.ast} title="Árbol sintáctico · ANTLR" />}
 
-            {result && activeTab === 'symbols' && (result.symbolTable ? <div className="scope-view"><p className="section-note">Identificadores organizados según el alcance donde fueron declarados.</p><ScopeTree scope={result.symbolTable} /></div> : <div className="empty-panel"><h3>Sin tabla de símbolos</h3></div>)}
+            {result && activeTab === 'symbols' && <Diagram key={`symbols-${result.diagrams?.symbols?.url}`} diagram={result.diagrams?.symbols} title="Símbolos y registros de activación" />}
+
+            {result && activeTab === 'tac' && (result.intermediateCode ? <>
+              <Diagram key={`tac-${result.diagrams?.tac?.url}`} diagram={result.diagrams?.tac} title="Flujo de control · TAC" />
+              <div className="tac-stats">{result.intermediateCode.temporaries.map((pool) => <span key={pool.frame}>{pool.frame}: {pool.created} temporales · {pool.reused} reutilizaciones</span>)}</div>
+              <pre className="tac-code">{result.intermediateCode.text}</pre>
+            </> : <div className="empty-panel"><h3>TAC bloqueado</h3><p>Corrige todos los errores léxicos, sintácticos y semánticos para generar la representación intermedia.</p></div>)}
 
             {result && activeTab === 'tokens' && (
               <div className="token-view">

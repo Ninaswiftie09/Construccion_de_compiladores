@@ -7,6 +7,9 @@ import sys
 from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
+from pydantic import Field
 from pydantic import BaseModel
 from typing import Any, Optional
 
@@ -14,6 +17,7 @@ from typing import Any, Optional
 sys.path.insert(0, str(Path(__file__).parent))
 
 from analyzer.compiler import Compiler, CompilationResult
+from analyzer.diagrams import OUTPUT_DIR, save_diagrams
 
 
 # Pydantic valida el formato de las solicitudes y respuestas.
@@ -35,15 +39,26 @@ class CompileResponse(BaseModel):
     tokens: list[dict[str, Any]]
     ast: Optional[dict[str, Any]] = None
     symbolTable: Optional[dict[str, Any]] = None
+    intermediateCode: Optional[dict[str, Any]] = None
+    diagrams: dict[str, Any] = Field(default_factory=dict)
+    diagramWarnings: list[str] = Field(default_factory=list)
 
 
 # Crea la API que conecta el IDE con el analizador.
 
 app = FastAPI(
     title="Compiscript Compiler API",
-    description="Lexical, syntactic, and semantic analysis for Compiscript",
-    version="1.0.0"
+    description="Compiscript analysis, TAC generation and image diagrams",
+    version="2.0.0"
 )
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/diagrams", StaticFiles(directory=OUTPUT_DIR), name="diagrams")
+
+
+def build_response(code):
+    result = Compiler().compile(code)
+    diagrams, warnings = save_diagrams(result)
+    return CompileResponse(**result.to_dict(), diagrams=diagrams, diagramWarnings=warnings)
 
 # CORS permite conectar una interfaz servida desde otro puerto.
 app.add_middleware(
@@ -63,7 +78,7 @@ async def root():
     return {
         "status": "ok",
         "service": "Compiscript Compiler API",
-        "version": "1.0.0"
+        "version": "2.0.0"
     }
 
 
@@ -83,10 +98,7 @@ async def compile_code(request: CompileRequest) -> CompileResponse:
     """
     try:
         # Cada solicitud usa una tabla y una lista de errores independientes.
-        compiler = Compiler()
-        result = compiler.compile(request.code)
-        
-        return CompileResponse(**result.to_dict())
+        return await run_in_threadpool(build_response, request.code)
     
     except Exception as e:
         raise HTTPException(
@@ -104,7 +116,7 @@ async def compile_file(file: UploadFile = File(...)) -> CompileResponse:
     """
     try:
         # Rechaza formatos que no correspondan a archivos Compiscript.
-        if not file.filename.endswith('.cps'):
+        if not (file.filename or "").lower().endswith('.cps'):
             raise HTTPException(
                 status_code=400,
                 detail="File must be a .cps file"
@@ -119,10 +131,7 @@ async def compile_file(file: UploadFile = File(...)) -> CompileResponse:
         
         # Analiza el archivo sin ejecutar sus instrucciones.
         # Cada solicitud usa una tabla y una lista de errores independientes.
-        compiler = Compiler()
-        result = compiler.compile(source_code)
-        
-        return CompileResponse(**result.to_dict())
+        return await run_in_threadpool(build_response, source_code)
     
     except HTTPException:
         raise
@@ -138,13 +147,17 @@ async def compiler_info():
     """Get information about the compiler"""
     return {
         "name": "Compiscript Compiler",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "features": [
             "Lexical Analysis",
             "Syntactic Analysis",
             "Semantic Analysis",
             "Symbol Table Management",
-            "Error Recovery"
+            "Error Recovery",
+            "Three Address Code",
+            "Temporary Recycling",
+            "Activation Records",
+            "Saved Image Diagrams"
         ],
         "supportedTypes": [
             "integer",

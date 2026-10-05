@@ -117,7 +117,7 @@ class TACGenerator(CompiscriptVisitor):
     def generate(self, tree):
         self.emit("begin", self.scope.frame["id"])
         self.visit(tree)
-        self.emit("end", "global")
+        self.emit("end", self.scope.frame["id"])
         self.finish_pool(self.scope.frame)
         return {"format": "Compiscript TAC v1", "instructions": self.instructions,
                 "classes": [{"label": symbol.storage["label"],
