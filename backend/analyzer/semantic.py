@@ -50,7 +50,15 @@ class SemanticAnalyzer(CompiscriptVisitor):
         # Una declaracion sin nombre ya tiene diagnostico sintactico del parser.
         if type(tree).__name__ in ("VariableDeclarationContext", "ConstantDeclarationContext") and tree.Identifier() is None:
             return None
-        return super().visit(tree)
+        previous = getattr(self.symbol_table, "context", None)
+        self.symbol_table.context = tree
+        try:
+            result = super().visit(tree)
+            if isinstance(result, ExprInfo) and result.symbol:
+                tree._resolved_symbol = result.symbol
+            return result
+        finally:
+            self.symbol_table.context = previous
 
     def visitChildren(self, node):
         # Pasamos cada hijo por visit para aplicar tambien la recuperacion local.
@@ -476,6 +484,7 @@ class SemanticAnalyzer(CompiscriptVisitor):
             target = ExprInfo(member.data_type, member, member.symbol_type == "attribute") if member else ExprInfo()
             value = self._expr(self.visit(expressions[-1]))
         self._check_assignment(target, value, ctx)
+        ctx._target_symbol = target.symbol
         return None
 
     # Una expresion aislada tambien puede contener llamadas o errores.
@@ -562,8 +571,8 @@ class SemanticAnalyzer(CompiscriptVisitor):
 
     # Consulta si hay un ciclo dentro de la misma funcion.
     def visitBreakStatement(self, ctx):
-        if not self.symbol_table.is_in_loop():
-            self._error(ctx, "'break' solo puede usarse dentro de un ciclo")
+        if not self.symbol_table.is_in_breakable():
+            self._error(ctx, "'break' solo puede usarse dentro de un ciclo o switch")
         return None
 
     # Continue necesita un ciclo accesible sin cruzar otra funcion.
@@ -597,12 +606,12 @@ class SemanticAnalyzer(CompiscriptVisitor):
         self._forget_lengths()
         return None
 
-    # Sigue el requisito de switch booleano y compara los tipos de cada case.
+    # Cada case debe ser compatible con el valor del switch.
     def visitSwitchStatement(self, ctx):
         self._forget_lengths()
         switch_value = self._expr(self.visit(ctx.expression()))
-        if switch_value.type_info.base not in (DataType.BOOLEAN, DataType.UNKNOWN):
-            self._error(ctx, f"La condicion de 'switch' debe ser boolean, no {switch_value.type_info}")
+        if switch_value.type_info.base not in (DataType.BOOLEAN, DataType.INTEGER, DataType.FLOAT, DataType.STRING, DataType.UNKNOWN):
+            self._error(ctx, "La condicion de 'switch' debe ser un valor escalar")
         self.symbol_table.enter_scope("switch")
         for case in ctx.switchCase():
             case_type = self._expr(self.visit(case.expression())).type_info
@@ -776,6 +785,7 @@ class SemanticAnalyzer(CompiscriptVisitor):
     def visitNewExpr(self, ctx):
         name = ctx.Identifier().getText()
         class_symbol = self._lookup_class(name)
+        ctx._class_symbol = class_symbol
         arguments = self._arguments(ctx.arguments())
         if class_symbol is None:
             self._error(ctx, f"La clase '{name}' no existe")

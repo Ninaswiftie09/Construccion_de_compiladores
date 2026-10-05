@@ -20,6 +20,7 @@ class CompilationResult:
         self.tokens: list[dict[str, Any]] = []
         self.ast: Optional[dict[str, Any]] = None
         self.symbol_table: Optional[dict[str, Any]] = None
+        self.intermediate_code: Optional[dict[str, Any]] = None
         self._parse_tree = None
 
     def get_all_errors(self) -> list[CompilationError]:
@@ -41,6 +42,7 @@ class CompilationResult:
             "tokens": self.tokens,
             "ast": self.ast,
             "symbolTable": self.symbol_table,
+            "intermediateCode": self.intermediate_code,
         }
 
 
@@ -166,6 +168,9 @@ class Compiler:
             analyzer = SemanticAnalyzer()
             analyzer.visit(self.result._parse_tree)
             self.result.semantic_errors = analyzer.get_errors()
+            if not self.result.has_errors():
+                from analyzer.tac import TACGenerator
+                self.result.intermediate_code = TACGenerator(analyzer).generate(self.result._parse_tree)
             self.result.symbol_table = analyzer.symbol_table.to_dict()
         except Exception as error:
             self.result.semantic_errors.append(

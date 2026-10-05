@@ -140,6 +140,7 @@ class Symbol:
         self.base_class: Optional[str] = None
         self.base_symbol: Optional[Symbol] = None
         self.array_length: Optional[int] = None
+        self.storage: dict = {}
 
     # Se serializa informacion util sin incluir enlaces que forman ciclos.
     def to_dict(self) -> dict:
@@ -156,6 +157,8 @@ class Symbol:
                 for name, param_type in self.parameters
             ],
             "returnType": str(self.return_type),
+            "storage": self.storage,
+            "baseClass": self.base_class,
         }
 
 
@@ -168,6 +171,7 @@ class Scope:
         self.parent = parent
         self.symbols: dict[str, Symbol] = {}
         self.child_scopes: list[Scope] = []
+        self.activation_record: dict = {}
 
     # El diccionario permite insertar y detectar duplicados por nombre.
     def define_symbol(self, symbol: Symbol) -> bool:
@@ -195,4 +199,5 @@ class Scope:
             "name": self.name,
             "symbols": [symbol.to_dict() for symbol in self.get_all_symbols()],
             "children": [scope.to_dict() for scope in self.child_scopes],
+            "activationRecord": self.activation_record,
         }

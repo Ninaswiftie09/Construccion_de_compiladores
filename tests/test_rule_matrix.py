@@ -25,7 +25,7 @@ RULES = [
     ("while", "while (false) {}", "while (1) {}", "condicion"),
     ("do_while", "do {} while (false);", "do {} while (1);", "condicion"),
     ("for", "for (; false;) {}", "for (; 1;) {}", "condicion"),
-    ("switch", "switch (true) { case false: print(1); }", "switch (1) { case 1: print(1); }", "condicion"),
+    ("switch", "switch (1) { case 1: print(1); break; }", "switch ([1]) { case 1: print(1); }", "condicion"),
     ("break", "while (true) { break; }", "break;", "break"),
     ("continue", "while (false) { continue; }", "continue;", "continue"),
     ("return_scope", "function f() { return; }", "return;", "return"),

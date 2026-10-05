@@ -16,6 +16,9 @@ class SymbolTable:
     def enter_scope(self, scope_type: str, name: str = "") -> Scope:
         # Cada bloque conserva el enlace al alcance que lo contiene.
         new_scope = Scope(scope_type, self.current_scope, name)
+        context = getattr(self, "context", None)
+        if context is not None:
+            context._semantic_scope = new_scope
         self.current_scope.child_scopes.append(new_scope)
         self.current_scope = new_scope
         self.scopes_stack.append(new_scope)
@@ -75,6 +78,16 @@ class SymbolTable:
 
     def is_in_function(self) -> bool:
         return self._has_scope(("function",))
+
+    def is_in_breakable(self) -> bool:
+        scope = self.current_scope
+        while scope:
+            if scope.scope_type in ("function", "class"):
+                return False
+            if scope.scope_type in ("while", "do-while", "for", "foreach", "switch"):
+                return True
+            scope = scope.parent
+        return False
 
     def is_in_class(self) -> bool:
         return self._has_scope(("class",))
