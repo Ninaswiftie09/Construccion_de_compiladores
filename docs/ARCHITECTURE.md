@@ -2,7 +2,9 @@
 
 ## Alcance
 
-El proyecto implementa análisis estático de Compiscript. La salida contiene diagnósticos, tokens, árbol sintáctico y tabla de símbolos. No existe fase de ejecución ni generación de código.
+El proyecto implementa análisis estático y generación de TAC para Compiscript.
+La salida contiene diagnósticos, tokens, árbol sintáctico, tabla de símbolos,
+registros de activación y código intermedio. No existe ejecución ni código objeto.
 
 ## Flujo de análisis
 
@@ -14,6 +16,10 @@ código .cps
    +-- Parser ANTLR ------ árbol + errores sintácticos
    |
    +-- Visitor semántico - errores + tabla de símbolos
+                              |
+                              +-- Si no hay errores: layout y visitor TAC
+                              |
+                              +-- Graphviz: SVG y PNG guardados
                               |
                               +-- API FastAPI -- IDE React
 ```
@@ -69,6 +75,36 @@ table.exit_scope()                                  # volver al padre
 
 Los alcances se serializan completos para mostrarlos en el IDE.
 
+### Layout y generación intermedia
+
+`layout.py` asigna una dirección única por símbolo, offsets en celdas de ocho bytes
+y un registro por global, función o clase. Todos los bloques de una función usan
+el mismo frame con direcciones distintas. Conserva los enlaces léxicos y calcula
+los campos heredados y las etiquetas de métodos sobrescritos.
+
+`tac.py` recorre el mismo árbol validado y reutiliza los alcances y símbolos
+resueltos en el visitor semántico. No reconstruye un parser. Genera cuádruplas
+`op, arg1, arg2, result`, etiquetas, llamadas y operaciones de objetos.
+`TemporaryPool` separa temporales vivos y libres por función; libera un temporal
+después de su último uso y mantiene reservados los valores que deben sobrevivir
+a ramas, ciclos o argumentos anidados.
+
+La puerta de generación comprueba **todas** las listas de errores. La recuperación
+puede producir un árbol y símbolos parciales, pero nunca produce TAC desde un
+programa inválido. Los detalles están en [TAC_DESIGN.md](TAC_DESIGN.md).
+
+### Diagramas y archivos
+
+`diagrams.py` construye grafos DOT y llama a Graphviz mediante argumentos separados,
+sin shell. Produce SVG para previsualizar y PNG para descargar. El árbol conserva
+las reglas de ANTLR; los símbolos muestran alcances y offsets; el TAC se divide
+en bloques básicos con aristas de salto, continuación y excepción.
+
+Cada solicitud recibe una carpeta única bajo `output/diagrams/`. La API sirve
+solo esa carpeta con `StaticFiles`; no expone el resto del repositorio. También
+guarda `program.tac` y el JSON del TAC válido. El render tiene un tiempo límite;
+un fallo de Graphviz se informa como aviso sin perder los resultados del análisis.
+
 ### API
 
 `backend/server.py` expone:
@@ -77,8 +113,11 @@ Los alcances se serializan completos para mostrarlos en el IDE.
 - `POST /compile/file`: recibe un archivo `.cps` UTF-8;
 - `GET /health`: comprueba disponibilidad;
 - `GET /info`: describe las capacidades.
+- `GET /diagrams/<id>/<archivo>`: sirve las imágenes guardadas.
 
-La respuesta de compilación incluye contadores por fase, lista de errores, tokens, árbol y tabla de símbolos.
+La respuesta incluye contadores, errores, tokens, árbol, símbolos, `intermediateCode`,
+`diagrams` y `diagramWarnings`. El análisis y render se ejecutan en un threadpool
+para evitar bloquear el bucle de la API.
 
 ### IDE
 
@@ -88,8 +127,13 @@ La respuesta de compilación incluye contadores por fase, lista de errores, toke
 - resaltado propio para Compiscript;
 - marcadores y navegación a la línea del error;
 - pestañas de diagnósticos, árbol, símbolos y tokens;
+- pestaña TAC con imagen del flujo de control y texto intermedio;
+- previsualización de imágenes con zoom, descarga y ruta guardada;
 - ejemplos válidos y con varios errores;
 - distribución adaptable para pantallas pequeñas.
+
+Si el usuario cambia el código durante un análisis, una revisión del editor
+impide mostrar la respuesta anterior como si perteneciera al texto nuevo.
 
 ## Pruebas
 

@@ -6,8 +6,13 @@
 - Node.js 18+
 - Java 11+ disponible como `java`
 - Git
+- Graphviz con `dot` en el PATH
 
 ANTLR se instala mediante `antlr4-tools` y descarga el JAR 4.13.2 la primera vez que se genera el parser.
+
+Instala Graphviz antes de analizar. Windows: `winget install Graphviz.Graphviz`;
+Ubuntu: `sudo apt-get install graphviz`; macOS: `brew install graphviz`.
+Abre otra terminal y comprueba `dot -V`. Graphviz dibuja los resultados; no ejecuta Compiscript.
 
 ## Instalación automática
 
@@ -89,12 +94,25 @@ Direcciones:
 
 En el IDE puedes escribir código, abrir o arrastrar un archivo `.cps` y analizar con el botón principal o `Ctrl + Enter`.
 
+Cuando el programa es válido aparece la pestaña **TAC**, con el diagrama de flujo,
+las estadísticas de temporales y el texto intermedio. **Árbol** y **Símbolos**
+muestran imágenes. Usa `+`, `−`, **Tamaño real**, **Ajustar** o **Abrir imagen completa** para inspeccionarlas.
+El enlace **PNG** descarga una imagen ya guardada por el backend.
+
+Cada análisis crea `output/diagrams/<id>/` en la raíz del proyecto. Ahí se guardan
+`ast.svg/png/dot`, `symbols.svg/png/dot` y, solo si no hubo errores,
+`tac.svg/png/dot`, `program.tac` y `program.json`. No se incluyen en Git.
+Los programas con errores conservan diagnósticos y diagramas de análisis, pero no TAC.
+Las carpetas anteriores se conservan para comparar análisis y pueden eliminarse
+manualmente cuando ya no hagan falta; la UI siempre usa el resultado actual.
+
 ## Pruebas y build
 
 ```bash
 python -m pytest -v
 cd frontend
 npm run build
+npm test -- --watchAll=false --runInBand
 ```
 
 ## Regenerar el parser
@@ -128,3 +146,9 @@ Confirma que `http://localhost:8000/health` responda `{"status":"healthy"}` y qu
 ### PowerShell bloquea `npm.ps1`
 
 Usa `npm.cmd install` y `npm.cmd start` en lugar de `npm`.
+
+### Faltan diagramas
+
+Comprueba `dot -V` en la misma terminal que inicia el backend. Si acabas de instalar
+Graphviz, reinicia esa terminal y el servidor. Los avisos se muestran en el IDE;
+el análisis y el texto TAC siguen disponibles si falla el render de una imagen.

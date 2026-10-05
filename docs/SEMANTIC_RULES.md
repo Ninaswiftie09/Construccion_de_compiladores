@@ -53,8 +53,10 @@ La deteccion de codigo inalcanzable es estructural: detecta sentencias despues d
 salidas directas y ramas que terminan en ambos lados. No demuestra si un ciclo es
 infinito ni evalua condiciones constantes.
 
-El enunciado semantico exige `switch` booleano y limita `break` a ciclos. Se siguen
-esas reglas aunque algunos ejemplos generales del lenguaje usen `switch` numerico.
+En la segunda parte, `switch` acepta valores escalares (`integer`, `float`, `string`
+y `boolean`) y exige cases compatibles con el selector, siguiendo los ejemplos
+del README de Compiscript. `break` puede salir de un ciclo o de un switch;
+`continue` requiere un ciclo. Ninguno puede cruzar una funcion anidada.
 La concatenacion de strings sigue los ejemplos del lenguaje. La gramatica incorpora
 literales `float`, mencionados en los requisitos semanticos.
 
